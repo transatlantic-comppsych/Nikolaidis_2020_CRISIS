@@ -1,0 +1,780 @@
+---
+title: "Subtype  Chi Square Tests"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r, warning = F, echo = F, include=FALSE}
+library(dplyr)
+library(erer)
+library(knitr)
+library(purrr)
+library(esc)
+library(sjstats)
+```
+
+```{r, warning = F, echo = F,include=F}
+
+UK <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_UK_Updated_07272020.csv", header = T, sep = ",")[-1] 
+US <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_US_Updated_07272020.csv", header = T, sep = ",")[-1]
+recoded_Crisis <- read.csv("C:/Users/jacob.derosa/Downloads/recoded_Crisis.csv", header = T, sep = ",")
+
+Adult = rbind(US, UK) %>% select(-participant_id, -sample, -regsam, -retest, -hash_dup_id) %>%
+  inner_join(recoded_Crisis, by=c("uid")) %>%
+   mutate(age = ifelse(years < 30, "Under 30", 
+                        ifelse(years >= 30 & years <= 49, "30-49", 
+                               ifelse(years > 49, "Over 50", NA)))) %>%
+  mutate(house_comp = ifelse(hhcomp == 0, "Living Alone", 
+                             ifelse(hhcomp == 1, "Partner", 
+                                    ifelse(hhcomp == 2 | hhcomp == 3, "Immediate no partner", 
+                                           ifelse(hhcomp == 4, "Other", 
+                                                  ifelse(hhcomp == 5 | hhcomp == 6, "Partner and Family", NA)))))) %>%
+     mutate(Education = ifelse(education == 1 | education == 2, "Less High School", 
+                                     ifelse(education == 3, "High School or GED", 
+                                            ifelse(education == 4, "Some College or 2 year degree", 
+                                                   ifelse(education == 5 | education == 6, "Some School beyond collge", 
+                                                                 ifelse(education == 7, "Graduate or professional degree", NA)))))) %>% 
+  mutate(newschool = as.factor(ifelse(schoolclosed == 1 & onlineclasses == 1, "onlineclasses",
+                                              ifelse(schoolclosed == 0, "inpersonclasses",
+                                                     ifelse(schoolclosed == 1 & onlineclasses == 0, "closesnoclass",
+                                                            ifelse(schoolclosed == 2, "notapplicable", NA))))))
+
+```
+
+Adult US 
+```{r, echo = F, include=T}
+
+US = Adult %>% filter(sample == "Adult_US" | sample == "Adult_US_CA" | sample == "Adult_US_NY")
+
+```
+
+Run Chi-Sqaure Comparisons between US Life Changes Subtypes 
+```{r}
+
+#Filter Subtypes from Dataset
+US_LC_1 = US %>% filter(Louvain_Cluster_LC == 1)
+US_LC_2 = US %>% filter(Louvain_Cluster_LC == 2)
+US_LC_3 = US %>% filter(Louvain_Cluster_LC == 3)
+
+list = list(US_LC_1, US_LC_2, US_LC_3)
+for(i in 1:length(list)){
+  #Sex
+  Sex_1 = table(list[[1]]$sex)[-3] #Keep only Males and Females 
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_Table = rbind(Sex_1, Sex_2, Sex_3) #Combine each subtype category 
+  test = chisq.test(Sex_both) #Compute Chi-Square test 
+  out <- data.frame("Sex p.value" = round(test$p.value, 3)) #Save P value 
+  #Age
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 3))
+  #Race
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  Race_Table = merge(R_1, R_2, all = T)
+  Race_Table = merge(Race_Table, R_3, all = T)
+  Race_Table[is.na(Race_Table)] = 0
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 3))
+  #Rooms in House
+  test.4 = aov(roomsinhouse ~ Louvain_Cluster_LC, data = US)
+  out4 = summary(test.4)
+  out4 = data.frame("Rooms in House" = round(out6[[1]][["Pr(>F)"]][1],4))
+  #House Hold Density 
+  test.5 = aov(hhdensity ~ Louvain_Cluster_LC, data = US)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+  #Working (Job Loss)
+  job_1 = table(list[[1]]$work)
+  job_2 = table(list[[2]]$work)
+  job_3 = table(list[[3]]$work)
+  Job_Table = rbind(job_1, job_2, job_3)
+  test.6 = chisq.test(Job_Table)
+  out6 <- data.frame("job p.value" = round(test$p.value, 4))
+  #School Closed 
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test.7 = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 4))
+  
+}
+
+US_Adult_LC = data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+esc_chisq(p =   5.157132e-08, 
+          totaln = 886, 
+          es.type = "eta", 
+          chisq =  39.63205)
+
+```
+
+Run Chi-Sqaure Comparisons between US Prior Habits Subtypes 
+```{r, echo = F, include = T}
+
+US_BM_1 = US %>% filter(Louvain_Cluster_BM == 1)
+US_BM_2 = US %>% filter(Louvain_Cluster_BM == 2)
+US_BM_3 = US %>% filter(Louvain_Cluster_BM == 3)
+
+list = list(US_BM_1, US_BM_2, US_BM_3)
+for(i in 1:length(list)){
+  
+  Sex_1 = table(list[[1]]$sex)[-3]
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_Table = rbind(Sex_1, Sex_2, Sex_3)
+  test = chisq.test(Sex_both)
+  out <- data.frame("Sex p.value" = round(test$p.value, 3))
+
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 3))
+  
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  Race_Table = merge(R_1, R_2, all = T)
+  Race_Table = merge(Race_Table, R_3, all = T)
+  Race_Table[is.na(Race_Table)] = 0
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 3))
+  
+  test.6 = aov(roomsinhouse ~ Louvain_Cluster_BM, data = US)
+  out6 = summary(test.6)
+  out6 = data.frame("Rooms in House" = round(out6[[1]][["Pr(>F)"]][1],4))
+  
+  test.5 = aov(hhdensity ~ Louvain_Cluster_BM, data = US)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+
+  job_1 = table(list[[1]]$work)
+  job_2 = table(list[[2]]$work)
+  job_3 = table(list[[3]]$work)
+  Job_Table = rbind(job_1, job_2, job_3)
+  test = chisq.test(Job_Table)
+  out6 <- data.frame("job p.value" = round(test$p.value, 3))
+  
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 3))
+  
+}
+
+US_Adult_BM =  data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+esc_chisq(p =   5.157132e-08, 
+          totaln = 886, 
+          es.type = "eta", 
+          chisq =  39.63205)
+
+```
+
+Adult UK 
+```{r, echo = F, include=F}
+
+UK = Adult %>% filter(sample == "Adult_London" | sample == "Adult_Manchester" | sample == "Adult_UK")
+
+```
+
+Run Chi-Sqaure Comparisons between UK Life Changes Subtypes 
+```{r}
+UK_LC_1 = UK %>% filter(Louvain_Cluster_LC == 1)
+UK_LC_2 = UK %>% filter(Louvain_Cluster_LC == 2)
+UK_LC_3 = UK %>% filter(Louvain_Cluster_LC == 3)
+
+list = list(UK_LC_1, UK_LC_2, UK_LC_3)
+for(i in 1:length(list)){
+  
+  Sex_1 = table(list[[1]]$sex)[-3]
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_Table = rbind(Sex_1, Sex_2, Sex_3)
+  test = chisq.test(Sex_both)
+  out <- data.frame("Sex p.value" = round(test$p.value, 4))
+
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 4))
+  
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  Race_Table = merge(R_1, R_2, all = T)
+  Race_Table = merge(Race_Table, R_3, all = T)
+  Race_Table[is.na(Race_Table)] = 0
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 4))
+  
+  test.6 = aov(roomsinhouse ~ Louvain_Cluster_LC, data = UK)
+  out6 = summary(test.6)
+  out6 = data.frame("Rooms in House" = round(out6[[1]][["Pr(>F)"]][1],4))
+  
+  test.5 = aov(hhdensity ~ Louvain_Cluster_LC, data = UK)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+  
+  job_1 = table(list[[1]]$work)
+  job_2 = table(list[[2]]$work)
+  job_3 = table(list[[3]]$work)
+  Job_Table = rbind(job_1, job_2)
+  test = chisq.test(Job_Table)
+  out6 <- data.frame("job p.value" = round(test$p.value, 4))
+  
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 4))
+  
+  job_1 = table(list[[1]]$work)
+  job_2 = table(list[[2]]$work)
+  job_3 = table(list[[3]]$work)
+  Job_Table = rbind(job_1, job_2, job_3)
+  test = chisq.test(Job_Table)
+  out6 <- data.frame("job p.value" = round(test$p.value, 4))
+  
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 4))
+  
+}
+
+UK_Adult_LC = data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+
+#insert p, totaln, chisq from above output for each contingency table
+esc_chisq(p =  3.538897e-06, 
+          totaln = 884, 
+          es.type = "eta", 
+          chisq =  30.69132)
+
+```
+
+Run Chi-Sqaure Comparisons between UK Prior Habits Subtypes 
+```{r, echo = F, include=F}
+
+UK_BM_1 = UK %>% filter(Louvain_Cluster_BM == 1)
+UK_BM_2 = UK %>% filter(Louvain_Cluster_BM == 2)
+UK_BM_3 = UK %>% filter(Louvain_Cluster_BM == 3)
+
+list = list(UK_BM_1, UK_BM_2, UK_BM_3)
+
+for(i in 1:length(list)){
+  
+  Sex_1 = table(list[[1]]$sex)[-3]
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_Table = rbind(Sex_1, Sex_2, Sex_3)
+  test = chisq.test(Sex_both)
+  out <- data.frame("Sex p.value" = round(test$p.value, 4))
+
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 4))
+  
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  Race_Table = merge(R_1, R_2, all = T)
+  Race_Table = merge(Race_Table, R_3, all = T)
+  Race_Table[is.na(Race_Table)] = 0
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 4))
+  
+  test.6 = aov(roomsinhouse ~ Louvain_Cluster_BM, data = UK)
+  out6 = summary(test.6)
+  out6 = data.frame("Rooms in House" = round(out6[[1]][["Pr(>F)"]][1],4))
+  
+  test.5 = aov(hhdensity ~ Louvain_Cluster_BM, data = UK)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+
+  
+  job_1 = table(list[[1]]$work)
+  job_2 = table(list[[2]]$work)
+  job_3 = table(list[[3]]$work)
+  Job_Table = rbind(job_1, job_2, job_3)
+  test = chisq.test(Job_Table)
+  out6 <- data.frame("job p.value" = round(test$p.value, 4))
+  
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 4))
+  
+}
+
+
+UK_Adult_BM = data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+esc_chisq(p =   5.157132e-08, 
+          totaln = 886, 
+          es.type = "eta", 
+          chisq =  39.63205)
+
+```
+
+Repeat steps below on Parent Data
+```{r, echo = F}
+
+UK_P <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_UK_Updated_07272020.csv", header = T, sep = ",")[-1] 
+US_P <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_US_Updated_07272020.csv", header = T, sep = ",")[-1]
+
+recoded_Crisis <- read.csv("C:/Users/jacob.derosa/Downloads/recoded_Crisis.csv", header = T, sep = ",")
+
+Parent = rbind(US_P, UK_P) %>% select(-participant_id, -sample, -regsam, -retest, -hash_dup_id) %>%
+  inner_join(recoded_Crisis, by=c("uid")) %>%
+   mutate(age = ifelse(years < 30, "Under 30", 
+                        ifelse(years >= 30 & years <= 49, "30-49", 
+                               ifelse(years > 49, "Over 50", NA)))) %>%
+  mutate(house_comp = ifelse(hhcomp == 0, "Living Alone", 
+                             ifelse(hhcomp == 1, "Partner", 
+                                    ifelse(hhcomp == 2 | hhcomp == 3, "Immediate no partner", 
+                                           ifelse(hhcomp == 4, "Other", 
+                                                  ifelse(hhcomp == 5 | hhcomp == 6, "Partner and Family", NA)))))) %>%
+  mutate(newschool = as.factor(ifelse(schoolclosed == 1 & onlineclasses == 1, "onlineclasses",
+                                              ifelse(schoolclosed == 0, "inpersonclasses",
+                                                     ifelse(schoolclosed == 1 & onlineclasses == 0, "closesnoclass",
+                                                            ifelse(schoolclosed == 2, "notapplicable", NA)))))) %>%
+  mutate(childage = ifelse(years_2 <= 5, "5_Under",
+                           ifelse(years_2 > 5 & years_2 <=13, "6-13",
+                                  ifelse(years_2 > 13 & years_2 <= 17, "13-17",
+                                         ifelse(years_2 > 17, "18_over", NA)))))
+
+
+```
+
+Parent US 
+```{r, echo = F, include=F}
+
+US_P = Parent %>% filter(sample == "Parent_US" | sample == "Parent_US_CA" | sample == "Parent_US_NY")
+
+```
+
+Run Chi-Sqaure Comparisons between US Life Changes Subtypes 
+```{r}
+
+US_LC_1 = US_P %>% filter(Louvain_Cluster_LC == 1)
+US_LC_2 = US_P %>% filter(Louvain_Cluster_LC == 2)
+US_LC_3 = US_P %>% filter(Louvain_Cluster_LC == 3)
+
+list = list(US_LC_1, US_LC_2, US_LC_3)
+
+for(i in 1:length(list)){
+  
+  Sex_1 = table(list[[1]]$sex)[-3]
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_Table = rbind(Sex_1, Sex_2, Sex_3)
+  test = chisq.test(Sex_both)
+  out <- data.frame("Sex p.value" = round(test$p.value, 4))
+
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 4))
+  
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  Race_Table = merge(R_1, R_2, all = T)
+  Race_Table = merge(Race_Table, R_3, all = T)
+  Race_Table[is.na(Race_Table)] = 0
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 4))
+  
+  test.4 = aov(roomsinhouse ~ Louvain_Cluster_LC, data = US_P)
+  out4 = summary(test.4)
+  out4 = data.frame("Rooms in House" = round(out4[[1]][["Pr(>F)"]][1],4))
+  
+  test.5 = aov(hhdensity ~ Louvain_Cluster_LC, data = US_P)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+
+  ChildAge_1 = table(list[[1]]$childage)
+  ChildAge_2 = table(list[[2]]$childage)
+  ChildAge_3 = table(list[[3]]$childage)
+  ChildAge_Table = rbind(ChildAge_1, ChildAge_2, ChildAge_3)
+  test.6 = chisq.test(ChildAge_Table)
+  out6 <- data.frame("Child Age p.value" = round(test.6$p.value, 4))
+
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test.7 = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test.7$p.value, 4))
+
+  
+}
+
+
+US_P_Adult_LC = data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+esc_chisq(p =   5.157132e-08, 
+          totaln = 886, 
+          es.type = "eta", 
+          chisq =  39.63205)
+
+```
+
+Run Chi-Sqaure Comparisons between US Prior Habits Subtypes 
+```{r, echo = F}
+
+US_BM_1 = US_P %>% filter(Louvain_Cluster_BM == 1)
+US_BM_2 = US_P %>% filter(Louvain_Cluster_BM == 2)
+US_BM_3 = US_P %>% filter(Louvain_Cluster_BM == 3)
+
+list = list(US_BM_1, US_BM_2, US_BM_3)
+for(i in 1:length(list)){
+  
+  Sex_1 = table(list[[1]]$sex)[-3]
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_Table = rbind(Sex_1, Sex_2, Sex_3)
+  test = chisq.test(Sex_both)
+  out <- data.frame("Sex p.value" = round(test$p.value, 3))
+
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 3))
+  
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  Race_Table = merge(R_1, R_2, all = T)
+  Race_Table = merge(Race_Table, R_3, all = T)
+  Race_Table[is.na(Race_Table)] = 0
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 3))
+  
+  test.6 = aov(roomsinhouse ~ Louvain_Cluster_BM, data = US_P)
+  out6 = summary(test.6)
+  out6 = data.frame("Rooms in House" = round(out6[[1]][["Pr(>F)"]][1],4))
+  
+  test.5 = aov(hhdensity ~ Louvain_Cluster_BM, data = US_P)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+  
+  ChildAge_1 = table(list[[1]]$childage)
+  ChildAge_2 = table(list[[2]]$childage)
+  ChildAge_3 = table(list[[3]]$childage)
+  ChildAge_Table = rbind(ChildAge_1, ChildAge_2, ChildAge_3)
+  test.6 = chisq.test(ChildAge_Table)
+  out6 <- data.frame("Child Age p.value" = round(test.6$p.value, 4))
+
+ 
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 3))
+
+  
+}
+
+
+US_P_Adult_BM =  data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+esc_chisq(p =   5.157132e-08, 
+          totaln = 886, 
+          es.type = "eta", 
+          chisq =  39.63205)
+
+```
+
+Parent UK
+```{r, echo = F, include=F}
+
+UK_P = Parent %>% filter(sample == "Parent_UK_London" | sample == "Parent_UK_Manchester" | sample == "Parent_UK")
+
+```
+
+Run Chi-Sqaure Comparisons between UK Life Changes Subtypes 
+```{r}
+
+UK_LC_1 = UK_P %>% filter(Louvain_Cluster_LC == 1)
+UK_LC_2 = UK_P %>% filter(Louvain_Cluster_LC == 2)
+UK_LC_3 = UK_P %>% filter(Louvain_Cluster_LC == 3)
+
+list = list(UK_LC_1, UK_LC_2, UK_LC_3)
+for(i in 1:length(list)){
+  
+  Sex_1 = table(list[[1]]$sex)[-3]
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_Table = rbind(Sex_1, Sex_2, Sex_3)
+  test = chisq.test(Sex_both)
+  out <- data.frame("Sex p.value" = round(test$p.value, 3))
+
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 3))
+  
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  Race_Table = rbind(R_1, R_2, R_3)
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 3))
+  
+
+  test.6 = aov(roomsinhouse ~ Louvain_Cluster_LC, data = UK_P)
+  out6 = summary(test.6)
+  out6 = data.frame("Rooms in House" = round(out6[[1]][["Pr(>F)"]][1],4))
+  
+  test.5 = aov(hhdensity ~ Louvain_Cluster_LC, data = UK_P)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+   
+  ChildAge_1 = table(list[[1]]$childage)
+  ChildAge_2 = table(list[[2]]$childage)
+  ChildAge_3 = table(list[[3]]$childage)
+  ChildAge_Table = rbind(ChildAge_1, ChildAge_2, ChildAge_3)
+  test.6 = chisq.test(ChildAge_Table)
+  out6 <- data.frame("Child Age p.value" = round(test.6$p.value, 4))
+
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3)
+  test = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 3))
+
+  
+}
+
+UK_P_Adult_LC =  data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+esc_chisq(p =   5.157132e-08, 
+          totaln = 886, 
+          es.type = "eta", 
+          chisq =  39.63205)
+
+```
+
+Run Chi-Sqaure Comparisons between UK Prior Habits Clusters 
+```{r, echo = F, include=F}
+
+UK_BM_1 = UK_P %>% filter(Louvain_Cluster_BM == 1)
+UK_BM_2 = UK_P %>% filter(Louvain_Cluster_BM == 2)
+UK_BM_3 = UK_P %>% filter(Louvain_Cluster_BM == 3)
+UK_BM_4 = UK_P %>% filter(Louvain_Cluster_BM == 4)
+
+list = list(UK_BM_1, UK_BM_2, UK_BM_3, UK_BM_4)
+for(i in 1:length(list)){
+  
+  Sex_1 = table(list[[1]]$sex)[-3]
+  Sex_2 = table(list[[2]]$sex)[-3]
+  Sex_3 = table(list[[3]]$sex)[-3]
+  Sex_4 = table(list[[4]]$sex)[-3] 
+  Sex_Table = data.frame(rbind(Sex_1, Sex_2, Sex_3, Sex_4))
+  test = chisq.test(Sex_both)
+  out <- data.frame("Sex p.value" = round(test$p.value, 4))
+
+  Age_1 = table(list[[1]]$age)
+  Age_2 = table(list[[2]]$age)
+  Age_3 = table(list[[3]]$age)
+  Age_4 = table(list[[4]]$age)
+  Age_Table = rbind(Age_1, Age_2, Age_3, Age_4)
+  test2 = chisq.test(Age_Table)
+  out2 <- data.frame("Age p.value" = round(test2$p.value, 4))
+  
+  R_1 = t(as.matrix(table(list[[1]]$informant_race2)))
+  R_2 = t(as.matrix(table(list[[2]]$informant_race2)))
+  R_3 = t(as.matrix(table(list[[3]]$informant_race2)))
+  R_4 = t(as.matrix(table(list[[4]]$informant_race2)))
+  Race_Table = merge(R_1, R_2, all = T)
+  Race_Table = merge(Race_Table, R_3, all = T)
+  Race_Table = merge(Race_Table, R_4, all = T)
+  Race_Table[is.na(Race_Table)] = 0
+  test3 = chisq.test(Race_Table)
+  out3 <- data.frame("Race p.value" = round(test3$p.value, 4))
+  
+  DX_1 = table(list[[1]]$fam_dx)
+  DX_2 = table(list[[2]]$fam_dx)
+  DX_3 = table(list[[3]]$fam_dx)
+  DX_4 = table(list[[4]]$fam_dx)
+  DX_both = rbind(DX_1, DX_2, DX_3, DX_4)
+  test5 = chisq.test(DX_both)
+  out5 <- data.frame("Fam DX p.value" = round(test5$p.value, 4))
+  
+  test.6 = aov(roomsinhouse ~ Louvain_Cluster_BM, data = UK_P)
+  out6 = summary(test.6)
+  out6 = data.frame("Rooms in House" = round(out6[[1]][["Pr(>F)"]][1],4))
+  
+  test.5 = aov(hhdensity ~ Louvain_Cluster_BM, data = UK_P)
+  out5 = summary(test.5)
+  out5 = data.frame("HH Density" = round(out5[[1]][["Pr(>F)"]][1],4))
+
+  
+  school_1 = table(list[[1]]$newschool)
+  school_2 = table(list[[2]]$newschool)
+  school_3 = table(list[[3]]$newschool)
+  school_4 = table(list[[4]]$newschool)
+  School_Table = rbind(school_1, school_2, school_3, school_4)
+  test = chisq.test(School_Table)
+  out7 <- data.frame("school p.value" = round(test$p.value, 4))
+  
+  ChildAge_1 = table(list[[1]]$childage)
+  ChildAge_2 = table(list[[2]]$childage)
+  ChildAge_3 = table(list[[3]]$childage)
+  ChildAge_4 = table(list[[4]]$childage)
+  ChildAge_Table = rbind(ChildAge_1, ChildAge_2, ChildAge_3, ChildAge_4)
+  test.6 = chisq.test(ChildAge_Table)
+  out6 <- data.frame("Child Age p.value" = round(test.6$p.value, 4))
+  
+}
+
+UK_P_Adult_BM =  data.frame(cbind(out, out2, out3, out4, out5, out6, out7))
+
+
+```
+
+ANOVA ETA Squared Calculation 
+```{r}
+eta_sq(test.4) #Anova eta hhdensity 
+eta_sq(test.5) #Anova eta 
+
+```
+
+Chi-Square ETA Calculation on Contingency Tables
+```{r}
+#Options for ct =  (Job_Table, School_Table, Race_Table, Age_Table, Sex Both )
+ES.chisq.assoc(ct = Job_Table) #obtain p, totaln, chisq
+esc_chisq(p =   5.157132e-08, 
+          totaln = 886, 
+          es.type = "eta", 
+          chisq =  39.63205)
+
+```
+
+
+
+

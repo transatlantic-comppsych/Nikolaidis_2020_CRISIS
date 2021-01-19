@@ -1,0 +1,266 @@
+---
+title: "Adult Louvain Final Clusters ANOVAS"
+
+output:
+  html_document:
+    number_sections: no
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, echo = F, include = F}
+#load Libraries 
+library(knitr)
+library(dplyr)
+library(purrr)
+library(reshape2)
+library(tidyr)
+library(stringi)
+library(ggplot2)
+library(ggiraphExtra)
+library(gplots)
+library(heplots)
+#install.packages("https://cran.r-project.org/src/contrib/Archive/hybridHclust/hybridHclust_1.0-5.tar.gz", repos = NULL, type = "source")
+library(hybridHclust)
+library(RColorBrewer)
+library(viridis)
+library(sjstats)
+
+```
+
+```{r, echo = F, include = F}
+
+US_1 = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_US_Updated_07272020.csv", header = T, sep = ",")
+
+UK_1 = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_UK_Updated_07272020.csv", header = T, sep = ",")
+
+```
+
+# ***Life Changes***
+
+## US
+
+### Difference 
+```{r, warning = F, echo = F}
+US_1$Louvain_Cluster_LC = as.factor(US_1$Louvain_Cluster_LC)
+noCOVmodel <- aov(ew_difference ~ Louvain_Cluster_LC, data = US_1)
+
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+
+```
+
+### Emotion Worries Three Months 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries ~ Louvain_Cluster_LC, data = US_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### Emotion Worries Two Weeks 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries_2 ~ Louvain_Cluster_LC + emotion_worries, data = US_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### COVID Worries
+```{r, warning = F, echo = F}
+
+noCOVmodel <- aov(covid_worries ~ Louvain_Cluster_LC, data = US_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+
+```
+
+## UK
+### Difference 
+```{r, warning = F, echo = F}
+UK_1$Louvain_Cluster_LC = as.factor(UK_1$Louvain_Cluster_LC)
+noCOVmodel <- aov(ew_difference ~ Louvain_Cluster_LC, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### Emotion Worries Three Months 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries ~ Louvain_Cluster_LC, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### Emotion Worries Two Weeks 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries_2 ~ Louvain_Cluster_LC + emotion_worries, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+   
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+
+```
+
+### COVID Worries
+```{r, warning = F, echo = F}
+
+noCOVmodel <- aov(covid_worries ~ Louvain_Cluster_LC, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+# pairwise comparisons
+
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_LC"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+
+```
+
+# ***Behavior Media***
+
+## US
+
+### Difference 
+```{r, warning = F, echo = F}
+US_1$Louvain_Cluster_BM = as.factor(US_1$Louvain_Cluster_BM)
+noCOVmodel <- aov(ew_difference ~ Louvain_Cluster_BM, data = US_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_BM"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+
+```
+
+### Emotion Worries Three Months 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries ~ Louvain_Cluster_BM, data = US_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_BM"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+
+```
+
+### Emotion Worries Two Weeks 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries_2 ~ Louvain_Cluster_BM + emotion_worries, data = US_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_BM"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### COVID Worries
+```{r, warning = F, echo = F}
+
+noCOVmodel <- aov(covid_worries ~ Louvain_Cluster_BM, data = US_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+
+```
+
+## UK
+### Difference 
+```{r, warning = F, echo = F}
+UK_1$Louvain_Cluster_BM = as.factor(UK_1$Louvain_Cluster_BM)
+noCOVmodel <- aov(ew_difference ~ Louvain_Cluster_BM, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_BM"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### Emotion Worries Three Months 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries ~ Louvain_Cluster_BM, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_BM"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### Emotion Worries Two Weeks 
+```{r, warning = F, echo = F}
+noCOVmodel <- aov(emotion_worries_2 ~ Louvain_Cluster_BM + emotion_worries, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+
+eta_sq(noCOVmodel)
+```
+
+### COVID Worries
+```{r, warning = F, echo = F}
+
+noCOVmodel <- aov(covid_worries ~ Louvain_Cluster_BM, data = UK_1)
+car::Anova(noCOVmodel) %>%
+   kable(format="pandoc")
+# pairwise comparisons
+
+# pairwise comparisons
+pairs(emmeans::pmmeans(noCOVmodel, "Louvain_Cluster_BM"), adjust = "fdr") %>%
+   kable(format="pandoc")
+
+
+eta_sq(noCOVmodel)
+```

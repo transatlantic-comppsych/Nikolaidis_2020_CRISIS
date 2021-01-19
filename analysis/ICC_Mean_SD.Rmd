@@ -1,0 +1,77 @@
+---
+title: "ICC Mean and SD"
+author: "Jacob DeRosa"
+date: "7/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(dplyr)
+library(mosaic)
+
+```
+
+```{r}
+
+priorlife = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/priorlife.csv", header = T, sep = ",", row.names = 1))) %>% gather(., "Var", "Score") %>% mutate(Score = as.numeric(Score))
+
+substanceuse = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/substanceuse.csv", header = T, sep = ",", row.names = 1))) %>% gather(., "Var", "Score") %>% mutate(Score = as.numeric(Score)) %>% na.omit(.)
+
+lifestylechanges = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/lifechanges.csv", header = T, sep = ",", row.names = 1))) %>% gather(., "Var", "Score") %>% mutate(Score = as.numeric(Score))
+
+priorlifemeansd = as.data.frame(fav_stats(priorlife$Score)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+
+substancemeansd = as.data.frame(fav_stats(substanceuse$Score)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+
+lifestylechangesmeansd = as.data.frame(fav_stats(lifestylechanges$Score)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+
+```
+
+Prior Life 3 Month
+```{r}
+
+priorlife_3 = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/priorlife.csv", header = T, sep = ",", row.names = 1))) %>% select(starts_with("3"))
+
+as.data.frame(fav_stats(priorlife_3$`3-Month Video Game Use`)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+
+```
+
+Prior Life 2 Weeks
+```{r}
+priorlife_2 = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/priorlife.csv", header = T, sep = ",", row.names = 1))) %>% select(starts_with("2"))
+
+
+as.data.frame(fav_stats(priorlife_2$`2-Week Video Game Use`)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+
+```
+
+Substance Use 3 Months 
+```{r}
+substanceuse_3 = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/substanceuse.csv", header = T, sep = ",", row.names = 1))) %>% select(starts_with("3"))
+
+
+as.data.frame(fav_stats(substanceuse_3$`3-Month Sleeping Meds Use`)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+
+```
+
+Substabce Use 2 Weeks 
+```{r}
+substanceuse_2 = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/substanceuse.csv", header = T, sep = ",", row.names = 1)))  %>% select(starts_with("2"))
+
+as.data.frame(fav_stats(substanceuse_2$`2-Week Sleeping Meds Use`)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+
+```
+
+Life Changes 2 Weeks 
+```{r}
+
+lifestylechanges = as.data.frame(t(read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/ICC_Data/lifechanges.csv", header = T, sep = ",", row.names = 1))) 
+
+as.data.frame(fav_stats(lifestylechanges$`Food Security`)) %>% select(mean,sd) %>% mutate_if(is.numeric, round, 2)
+```
+

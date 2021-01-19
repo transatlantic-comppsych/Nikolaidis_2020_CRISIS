@@ -1,0 +1,526 @@
+---
+title: "Crisis Subtype Line Plots"
+author: "Jacob DeRosa"
+date: "5/28/2020"
+output: html_document
+---
+
+```{r, warning = F, echo = F, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+```
+
+Subset Variables of Interest for Plots 
+```{r, warning = F, echo = F,include=F}
+
+UK_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Factor_Scores/Adult_UK_Combined_with_F.csv", header = T, sep = ",") %>%   select(participant_id, bedtimeweekdays, bedtimeweekends, hoursofsleepweekdays,
+         hoursofsleepweekends, exerciseprior, outdoorsprior, priortvmedia, 
+         priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, 
+         threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother, threemonthssleepingmeds) %>% na.omit(.) 
+
+US_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Factor_Scores/Adult_US_Combined_with_F.csv", header = T, sep = ",") %>%   select(participant_id, bedtimeweekdays, bedtimeweekends, hoursofsleepweekdays,
+         hoursofsleepweekends, exerciseprior, outdoorsprior, priortvmedia, 
+         priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, 
+         threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother, threemonthssleepingmeds) %>% na.omit(.)
+
+
+Adult_UK = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_UK_Updated.csv", header = T, sep = ",") %>% select(participant_id, Louvain_Cluster_BM) %>% inner_join(UK_1) %>% na.omit(.)
+
+
+
+Adult_US = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_US_Updated.csv", header = T, sep = ",") %>% select(participant_id, Louvain_Cluster_BM) %>% inner_join(US_1) %>% na.omit(.)
+
+
+Adult_UK[3:18] = scale(Adult_UK[3:18])
+Adult_US[3:18] = scale(Adult_US[3:18])
+```
+
+Put Variables in a list and calculate means for each subtype. Then transform the data to long format. 
+```{r, warning = F, echo = F, include = F}
+
+list_r = list(UK_1 = Adult_UK, US_1 = Adult_US)
+split_r = list()
+
+for (i in 1:length(list_r)){
+  split_r[[i]] = list_r[[i]] %>%
+    group_by(Louvain_Cluster_BM) %>%
+    summarise(   
+      BTWK = mean(bedtimeweekdays),
+      BTWKN = mean(bedtimeweekends),
+      HSW = mean(hoursofsleepweekdays),
+      HSWK = mean(hoursofsleepweekends),
+      EXCR = mean(exerciseprior),
+      OUTD = mean(outdoorsprior),
+      TVM = mean(priortvmedia),
+      VDG = mean(priorvideogames),
+      Sm = mean(priorsocialmedia),
+      ALC = mean(threemonthsalcohol),
+      VAPE = mean(threemonthsvaping),
+      TOBCO = mean(threemonthstobacco) ,
+      MJ = mean(threemonthsmarijuana) ,
+      OPIA = mean(threemonthsopiates) ,
+      OTHR = mean(threemonthsother) ,
+      SLPMD = mean(threemonthssleepingmeds) 
+      
+    )
+  names(split_r)[[i]] = names(list_r)[[i]]
+}
+
+data = as.data.frame(split_r["US_1"])
+
+#data = rbind(data, data_2)
+
+colnames(data) = c("Subtype", "Weekday Bedtime","Weekend Bedtime","Sleep Weekdays", "Sleep Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other Substance", "Sleeping Meds")
+
+data$Country = "US"
+
+data_2 = as.data.frame(split_r["UK_1"])
+
+colnames(data_2) = c("Subtype", "Weekday Bedtime","Weekend Bedtime","Sleep Weekdays", "Sleep Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other Substance", "Sleeping Meds")
+
+data_2$Country = "UK"
+
+comb_data = rbind(data, data_2)
+
+comb_data = gather(comb_data, "Var", "Mean", `Weekday Bedtime`:`Sleeping Meds`, factor_key = F)
+
+colors_line = c(scales::alpha("#C777E9", 1),
+                scales::alpha("dodgerblue2", 1),
+                scales::alpha("#FF9100", 1),
+                scales::alpha("#2F7600", 1))
+
+comb_data$Subtype = factor(comb_data$Subtype)
+comb_data$Country = factor(comb_data$Country)
+
+```
+
+Adult Prior Habits Plots 
+```{r, fig.height=11, fig.width=25}
+
+
+Adult_BH_Comb = ggplot(comb_data, aes(x=factor(Var), y=Mean, group = interaction(Subtype, Country), linetype = Country)) +
+  geom_line(aes(color = Subtype), size = 3.5) +
+  scale_colour_manual(values=colors_line) +
+  theme(axis.line = element_line(size=2, colour = "black"),
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank(),
+        panel.border = element_blank(), panel.background = element_blank()) +
+  theme(
+    panel.grid.major = element_line(colour = "grey44", linetype = "dotted", size = 1),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30), 
+    legend.text = element_text(size = 30)) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank()) +
+  # theme(axis.title.y=element_blank()) + 
+  scale_y_continuous(limits = c(-1.0, 1)) + 
+  scale_y_continuous(breaks = seq(-1.0, 1.5,.5)) + 
+  expand_limits(y = c(-1.0, 1, .5))  + 
+  theme(legend.position = "none") + 
+   scale_x_discrete(limits=c("Weekday Bedtime","Weekend Bedtime","Sleep Weekdays", "Sleep Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other Substance", "Sleeping Meds"),expand = c(0, .2)) + 
+   theme( 
+      axis.ticks.y = element_blank(), 
+      axis.line.y = element_blank()) +
+  labs(y = "Mean Standardized Scores", x = "") + 
+  theme(axis.title.y = element_text(size = 25, face = "bold")) + 
+    ggtitle("Prior Habits Subtype Profiles (Adult)") +
+  theme(plot.title = element_text(size=28, face = "bold", hjust = -.11, vjust = 6)) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 20, face = "bold", color = "black")) +
+  theme(plot.margin=unit(c(1,1,1.5,3),"cm")) 
+
+
+ggsave(Adult_BH_Comb, filename = "Adult_BH_Comb.png", dpi = 300, width = 18, height = 9.5)
+
+Adult_BH_Comb
+
+```
+
+```{r, warning = F,echo = F,include=F}
+
+Adult_UK <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_UK_Updated.csv", header = T, sep = ",") %>% select(participant_id, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity, Louvain_Cluster_LC) %>% na.omit(.) %>%
+  mutate(familychange = ifelse(familychange == 1,5,
+                               ifelse(familychange == 2, 4, 
+                                      ifelse(familychange == 3, 3, 
+                                             ifelse(familychange == 4, 2,
+                                                    ifelse(familychange == 5, 1,NA)))))) %>%
+           mutate(friendschange = 
+                    ifelse(friendschange == 1, 5, 
+                           ifelse(friendschange == 2, 4,
+                                  ifelse(friendschange == 3, 3, 
+                                         ifelse(friendschange == 4, 2, 
+                                                ifelse(friendschange == 5, 1,NA))))))
+
+Adult_US <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_US_Updated.csv", header = T, sep = ",") %>% select(participant_id, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity, Louvain_Cluster_LC) %>% na.omit(.) %>%
+  mutate(familychange = ifelse(familychange == 1,5,
+                               ifelse(familychange == 2, 4, 
+                                      ifelse(familychange == 3, 3, 
+                                             ifelse(familychange == 4, 2,
+                                                    ifelse(familychange == 5, 1,NA)))))) %>%
+           mutate(friendschange = 
+                    ifelse(friendschange == 1, 5, 
+                           ifelse(friendschange == 2, 4,
+                                  ifelse(friendschange == 3, 3, 
+                                         ifelse(friendschange == 4, 2, 
+                                                ifelse(friendschange == 5, 1,NA))))))
+
+
+Adult_UK[2:15] = scale(Adult_UK[2:15])
+Adult_US[2:15] = scale(Adult_US[2:15])
+
+```
+
+```{r}
+
+list = list(UK_1 = Adult_UK, US_1 = Adult_US)
+#list = list(US_1 = US_1)
+split_r = list()
+
+for (i in 1:length(list)){
+  split_r[[i]] = list[[i]] %>%
+    group_by(Louvain_Cluster_LC) %>%
+    summarise(
+      CC = mean(contactschanged),
+      FC = mean(familychange),
+      FF = mean(friendschange),        
+      IPC = mean(inpersonconvo_bin),
+      PC  = mean(positivechange), 
+      TO = mean(timeoutside),
+      DD = mean(difficultydistancing),  
+      DC = mean(difficultycancellations),
+      RS = mean(restrictionsstress),
+      FCS = mean(familychangestress),
+      FRCS = mean(friendchangestress), 
+      FS  = mean(foodsecurity), 
+      FD = mean(financedifficulty), 
+      LD  = mean(livingdifficulty)
+    )
+  names(split_r)[i] = names(list)[[i]]
+}
+
+
+data = as.data.frame(split_r["US_1"])
+
+#data = rbind(data, data_2)
+
+colnames(data) = c("Subtype", "∆ Freq. Outside Contacts", "∆ Family Relationships", "∆ Friends Relationships", "In-Person Conversation", "Positive Changes", "Time Outside Home", "Difficulty Distancing", "Event Cancelation Stress", "Stay-at-Home Stress", "Family Change Stress", "Friend Change Stress", "Food Insecurity", "Financial Difficulty", "Housing Instability Concern")
+
+data$Country = "US"
+
+data_2 = as.data.frame(split_r["UK_1"])
+
+colnames(data_2) = c("Subtype", "∆ Freq. Outside Contacts", "∆ Family Relationships", "∆ Friends Relationships", "In-Person Conversation", "Positive Changes", "Time Outside Home", "Difficulty Distancing", "Event Cancelation Stress", "Stay-at-Home Stress", "Family Change Stress", "Friend Change Stress", "Food Insecurity", "Financial Difficulty", "Housing Instability Concern")
+
+data_2$Country = "UK"
+
+comb_data = rbind(data, data_2)
+
+comb_data = gather(comb_data, "Var", "Mean", "∆ Freq. Outside Contacts":"Housing Instability Concern", factor_key = F)
+
+comb_data$Subtype = factor(comb_data$Subtype)
+comb_data$Country = factor(comb_data$Country)
+
+```
+
+Adult Prior Life Plots 
+```{r, fig.height=11, fig.width=25}
+
+Adult_LC_Comb = ggplot(comb_data, aes(x=factor(Var), y=Mean, group = interaction(Subtype, Country), linetype = Country)) +
+  geom_line(aes(color = Subtype), size = 3.5) +
+  scale_colour_manual(values=colors_line) +
+  theme(axis.line = element_line(size=2, colour = "black"),
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank(),
+        panel.border = element_blank(), panel.background = element_blank()) +
+  theme(
+    panel.grid.major = element_line(colour = "grey44", linetype = "dotted", size = 1),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30), 
+    legend.text = element_text(size = 30)) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank()) +
+  # theme(axis.title.y=element_blank()) + 
+  scale_y_continuous(limits = c(-1.0, 1)) + 
+  scale_y_continuous(breaks = seq(-1.0, 1.5,.5)) + 
+  expand_limits(y = c(-1.0, 1, .5))  + 
+  theme(legend.position = "none") + 
+   scale_x_discrete(limits=c("∆ Freq. Outside Contacts" , "∆ Family Relationships", "∆ Friends Relationships", "In-Person Conversation", "Positive Changes", "Time Outside Home", "Difficulty Distancing", "Event Cancelation Stress", "Stay-at-Home Stress", "Family Change Stress", "Friend Change Stress", "Food Insecurity", "Financial Difficulty", "Housing Instability Concern"), expand = c(0, .2)) +
+   theme( 
+      axis.ticks.y = element_blank(), 
+      axis.line.y = element_blank()) +
+  labs(y = "Mean Standardized Scores", x = "") + 
+  theme(axis.title.y = element_text(size = 20, face = "bold")) + 
+    ggtitle("Life Changes Subtype Profiles (Adult)") +
+  theme(plot.title = element_text(size=28, face = "bold", hjust = -.11, vjust = 6)) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 20, face = "bold", color = "black")) + 
+  theme(plot.margin=unit(c(1,1,1.5,3),"cm")) 
+
+
+ggsave(Adult_LC_Comb, filename = "Adult_LC_Comb.png", dpi = 300, width = 18, height = 9)
+Adult_LC_Comb
+
+```
+
+```{r, warning = F, echo = F,include=F}
+
+UK_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Factor_Scores/Parent_UK_Combined_with_F.csv", header = T, sep = ",") %>%
+  select(participant_id,priorweekdaybedtime, priorweekendbedtime, priorhoursofsleepweekdays,priorhoursofsleepweekend, exerciseprior, outdoorsprior, priortvmedia, priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother,threemonthssleepingmeds) %>% na.omit(.)
+
+US_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Factor_Scores/Parent_US_Combined_with_F.csv", header = T, sep = ",") %>%
+  select(participant_id,priorweekdaybedtime, priorweekendbedtime, priorhoursofsleepweekdays,priorhoursofsleepweekend, exerciseprior, outdoorsprior, priortvmedia, priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother,threemonthssleepingmeds) %>% na.omit(.)
+
+
+Parent_UK = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_UK_Updated.csv", header = T, sep = ",") %>% select(participant_id, Louvain_Cluster_BM) %>% inner_join(UK_1) %>% na.omit(.)
+
+
+Parent_US = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_US_Updated.csv", header = T, sep = ",") %>% select(participant_id, Louvain_Cluster_BM) %>% inner_join(US_1) %>% na.omit(.)
+
+
+Parent_UK[3:18] = scale(Parent_UK[3:18])
+Parent_US[3:18] = scale(Parent_US[3:18])
+```
+
+```{r, warning = F, echo = F, include = F}
+
+#From data sets for each split with clusters and CBCL scores begin by grouping CBCL scores by cluster then create mean for each CBCL subscale summarised by cluster
+list_r = list(UK_1 = Parent_UK, US_1 = Parent_US)
+#list_r = list(UK_1 = UK_1)
+split_r = list()
+
+for (i in 1:length(list_r)){
+  split_r[[i]] = list_r[[i]] %>%
+    group_by(Louvain_Cluster_BM) %>%
+    summarise(   
+      BTWK = mean(priorweekdaybedtime),
+      BTWKN = mean(priorweekendbedtime),
+      HSW = mean(priorhoursofsleepweekdays),
+      HSWK = mean(priorhoursofsleepweekend),
+      EXCR = mean(exerciseprior),
+      OUTD = mean(outdoorsprior),
+      TVM = mean(priortvmedia),
+      VDG = mean(priorvideogames),
+      Sm = mean(priorsocialmedia),
+      ALC = mean(threemonthsalcohol),
+      VAPE = mean(threemonthsvaping),
+      TOBCO = mean(threemonthstobacco) ,
+      MJ = mean(threemonthsmarijuana) ,
+      OPIA = mean(threemonthsopiates) ,
+      OTHR = mean(threemonthsother) ,
+      SLPMD = mean(threemonthssleepingmeds) 
+      
+    )
+  names(split_r)[[i]] = names(list_r)[[i]]
+}
+
+data = as.data.frame(split_r["US_1"])
+
+#data = rbind(data, data_2)
+
+colnames(data) = c("Subtype", "Weekday Bedtime","Weekend Bedtime","Sleep Weekdays", "Sleep Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other Substance", "Sleeping Meds")
+
+data$Country = "US"
+
+data_2 = as.data.frame(split_r["UK_1"])
+
+colnames(data_2) = c("Subtype", "Weekday Bedtime","Weekend Bedtime","Sleep Weekdays", "Sleep Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other Substance", "Sleeping Meds")
+
+data_2$Country = "UK"
+
+comb_data = rbind(data, data_2)
+
+comb_data = gather(comb_data, "Var", "Mean", `Weekday Bedtime`:`Sleeping Meds`, factor_key = F)
+
+comb_data$Subtype = factor(comb_data$Subtype)
+comb_data$Country = factor(comb_data$Country)
+
+```
+
+Parent Prior Habits Plots 
+```{r, fig.height=11, fig.width=25}
+
+
+
+Parent_BH_Comb = ggplot(comb_data, aes(x=factor(Var), y=Mean, group = interaction(Subtype, Country), linetype = Country)) +
+  geom_line(aes(color = Subtype), size = 3.5) +
+  scale_colour_manual(values=colors_line) +
+  theme(axis.line = element_line(size=2, colour = "black"),
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank(),
+        panel.border = element_blank(), panel.background = element_blank()) +
+  theme(
+    panel.grid.major = element_line(colour = "grey44", linetype = "dotted", size = 1),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30), 
+    legend.text = element_text(size = 30)) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank()) +
+  # theme(axis.title.y=element_blank()) + 
+  scale_y_continuous(limits = c(-1.0, 1)) + 
+  scale_y_continuous(breaks = seq(-1.0, 1.5,.5)) + 
+  expand_limits(y = c(-1.0, 1, .5))  + 
+  theme(legend.position = "none") + 
+   scale_x_discrete(limits=c("Weekday Bedtime","Weekend Bedtime","Sleep Weekdays", "Sleep Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other Substance", "Sleeping Meds"),expand = c(0, .2)) + 
+   theme( 
+      axis.ticks.y = element_blank(), 
+      axis.line.y = element_blank()) +
+  labs(y = "Mean Standardized Scores", x = "") + 
+  theme(axis.title.y = element_text(size = 25, face = "bold")) + 
+    ggtitle("Prior Habits Subtype Profiles (Parent)") +
+  theme(plot.title = element_text(size=28, face = "bold", hjust = -.11, vjust = 6)) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 20, face = "bold", color = "black")) +
+  theme(plot.margin=unit(c(1,1,1.5,3),"cm")) 
+
+ggsave(Parent_BH_Comb, filename = "Parent_BH_Comb.png", dpi = 300, width = 18, height = 9)
+
+Parent_BH_Comb
+
+```
+
+```{r, warning = F,echo = F,include=F}
+
+Parent_UK <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_UK_Updated.csv", header = T, sep = ",") %>% select(participant_id, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity, Louvain_Cluster_LC) %>% na.omit(.) %>%
+  mutate(familychange = ifelse(familychange == 1,5,
+                               ifelse(familychange == 2, 4, 
+                                      ifelse(familychange == 3, 3, 
+                                             ifelse(familychange == 4, 2,
+                                                    ifelse(familychange == 5, 1,NA)))))) %>%
+           mutate(friendschange = 
+                    ifelse(friendschange == 1, 5, 
+                           ifelse(friendschange == 2, 4,
+                                  ifelse(friendschange == 3, 3, 
+                                         ifelse(friendschange == 4, 2, 
+                                                ifelse(friendschange == 5, 1,NA))))))
+
+Parent_US <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_US_Updated.csv", header = T, sep = ",") %>% select(participant_id, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity, Louvain_Cluster_LC) %>% na.omit(.) %>%
+  mutate(familychange = ifelse(familychange == 1,5,
+                               ifelse(familychange == 2, 4, 
+                                      ifelse(familychange == 3, 3, 
+                                             ifelse(familychange == 4, 2,
+                                                    ifelse(familychange == 5, 1,NA)))))) %>%
+           mutate(friendschange = 
+                    ifelse(friendschange == 1, 5, 
+                           ifelse(friendschange == 2, 4,
+                                  ifelse(friendschange == 3, 3, 
+                                         ifelse(friendschange == 4, 2, 
+                                                ifelse(friendschange == 5, 1,NA))))))
+
+
+Parent_UK[2:15] = scale(Parent_UK[2:15])
+Parent_US[2:15] = scale(Parent_US[2:15])
+
+```
+
+```{r}
+
+list = list(UK_1 = Parent_UK, US_1 = Parent_US)
+#list = list(US_1 = US_1)
+split_r = list()
+
+for (i in 1:length(list)){
+  split_r[[i]] = list[[i]] %>%
+    group_by(Louvain_Cluster_LC) %>%
+    summarise(
+      CC = mean(contactschanged),
+      FC = mean(familychange),
+      FF = mean(friendschange),        
+      IPC = mean(inpersonconvo_bin),
+      PC  = mean(positivechange), 
+      TO = mean(timeoutside),
+      DD = mean(difficultydistancing),  
+      DC = mean(difficultycancellations),
+      RS = mean(restrictionsstress),
+      FCS = mean(familychangestress),
+      FRCS = mean(friendchangestress), 
+      FS  = mean(foodsecurity), 
+      FD = mean(financedifficulty), 
+      LD  = mean(livingdifficulty)
+    )
+  names(split_r)[i] = names(list)[[i]]
+}
+
+
+data = as.data.frame(split_r["US_1"])
+
+#data = rbind(data, data_2)
+
+colnames(data) = c("Subtype", "∆ Freq. Outside Contacts" , "∆ Family Relationships", "∆ Friends Relationships", "In-Person Conversation", "Positive Changes", "Time Outside Home", "Difficulty Distancing", "Event Cancelation Stress", "Stay-at-Home Stress", "Family Change Stress", "Friend Change Stress", "Food Insecurity", "Financial Difficulty", "Housing Instability Concern")
+
+data$Country = "US"
+
+data_2 = as.data.frame(split_r["UK_1"])
+
+colnames(data_2) = c("Subtype", "∆ Freq. Outside Contacts", "∆ Family Relationships", "∆ Friends Relationships", "In-Person Conversation", "Positive Changes", "Time Outside Home", "Difficulty Distancing", "Event Cancelation Stress", "Stay-at-Home Stress", "Family Change Stress", "Friend Change Stress", "Food Insecurity", "Financial Difficulty", "Housing Instability Concern")
+
+data_2$Country = "UK"
+
+comb_data = rbind(data, data_2)
+
+comb_data = gather(comb_data, "Var", "Mean", "∆ Freq. Outside Contacts":"Housing Instability Concern", factor_key = F)
+
+```
+
+Adult Prior Life Plots 
+```{r, fig.height=11, fig.width=25}
+
+comb_data$Subtype = factor(comb_data$Subtype)
+comb_data$Country = factor(comb_data$Country)
+
+Parent_LC_Comb =  ggplot(comb_data, aes(x=factor(Var), y=Mean, group = interaction(Subtype, Country), linetype = Country)) +
+  geom_line(aes(color = Subtype), size = 3.5) +
+  scale_colour_manual(values=colors_line) +
+  theme(axis.line = element_line(size=2, colour = "black"),
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank(),
+        panel.border = element_blank(), panel.background = element_blank()) +
+  theme(
+    panel.grid.major = element_line(colour = "grey44", linetype = "dotted", size = 1),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30), 
+    legend.text = element_text(size = 30)) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank()) +
+  # theme(axis.title.y=element_blank()) + 
+  scale_y_continuous(limits = c(-1.0, 1)) + 
+  scale_y_continuous(breaks = seq(-1.0, 1.5,.5)) + 
+  expand_limits(y = c(-1.0, 1, .5))  + 
+  theme(legend.position = "none") + 
+ scale_x_discrete(limits=c("∆ Freq. Outside Contacts" , "∆ Family Relationships", "∆ Friends Relationships", "In-Person Conversation", "Positive Changes", "Time Outside Home", "Difficulty Distancing", "Event Cancelation Stress", "Stay-at-Home Stress", "Family Change Stress", "Friend Change Stress", "Food Insecurity", "Financial Difficulty", "Housing Instability Concern"), expand = c(0, .2)) +
+   theme( 
+      axis.ticks.y = element_blank(), 
+      axis.line.y = element_blank()) +
+  labs(y = "Mean Standardized Scores", x = "") + 
+  theme(axis.title.y = element_text(size = 20, face = "bold")) + 
+    ggtitle("Life Changes Subtype Profiles (Parent)") +
+  theme(plot.title = element_text(size=28, face = "bold", hjust = -.11, vjust = 6)) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 20, face = "bold", color = "black")) + 
+  theme(plot.margin=unit(c(1,1,1.5,3),"cm")) 
+
+ggsave(Parent_LC_Comb, filename = "Parent_LC_Comb.png", dpi = 300, width = 18, height = 9)
+Parent_LC_Comb
+
+```

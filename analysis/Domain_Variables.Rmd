@@ -1,0 +1,167 @@
+---
+title: "Domain Variables Plot"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r, echo = F, include = F}
+library(tidyverse)
+library(ggthemes)
+library(readr)
+library(RColorBrewer)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, echo = F, include = F}
+
+library(dplyr)
+library(RColorBrewer)
+
+working_data <- read.csv("C:/Users/jacob.derosa/Documents/working_data_20200504.csv") %>% mutate(`Lifestyle Changes Subtypes` = c(1)) %>% mutate(`Age` = c(1)) %>% mutate(`Prior Mood States` = c(1))  %>% mutate(`COVID Worries` = c(1)) %>% mutate(Race = c(1)) 
+
+
+colnames = data.frame("Name" = colnames(working_data), "Analysis" = c(0))
+
+colnames2 = data.frame("Name" = colnames(working_data), "Analysis" = c(0))
+  
+colnames2 = colnames2 %>% mutate(Analysis = ifelse(Name == "Age" | Name == "physicalhealth" | Name == "sex" | Name == "location" | Name == "govassist" | Name == "Race" | Name == "insurance" | Name == "essentialworkers" | Name == "years_2"| Name == "roomsinhouse", "Background", NA)) %>% na.omit(.) %>% 
+  mutate(Name = ifelse(Name == "Age", "Age",
+                       ifelse(Name == "years_2", "Child Age",
+                              ifelse(Name == "sex", "Sex",
+                                ifelse(Name == "Race", "Race",
+                                       ifelse(Name == "physicalhealth", "Physical Health", 
+                                              ifelse(Name == "location", "Urbanicity",
+                                                      ifelse(Name == "insurance", "Insurance",
+                                                              ifelse(Name == "govassist", "Government Assistance",
+                                                                     ifelse(Name == "essentialworkers", "Essential Workers",
+                                                                            ifelse(Name == "roomsinhouse", "Rooms in House", NA)))))))))))
+
+
+
+colnames2$Name = c("Age", "Child Age", "Sex", "Race", "Physical Health", "Urbanicity", "Insurance", "Government Assistance", "Essential Workers", "Rooms in House")
+colnames2$Analysis = "Background"
+
+
+colnames3 = data.frame("Name" = c("Any Family Impact", "Family Member Diagnosed", "2-Week Exposure", "2-Week Symptom Count", "School Closed", "Job Loss"), "Analysis" = c("COVID Impact"))
+
+```
+
+```{r, echo = F, include = F}
+
+colnames = colnames %>%
+  mutate(Analysis = ifelse(Name == "worriedyourself" | Name ==  "worriedothers"| Name == "worriedphysical"| Name == "worriedmental" | Name == "readingtalking" | Name == "hopefullyend", "COVID Worries",
+                           ifelse(Name ==  "contactschanged" | Name == "familychange" | Name == "friendschange"| Name == "inpersonconvo"| Name == "positivechange"| Name == "timeoutside"| Name == "difficultydistancing" | Name == "difficultycancellations"| Name == "restrictionsstress"| Name == "familychangestress"| Name == "friendchangestress"| Name == "foodsecurity"| Name ==  "financedifficulty"| Name == "livingdifficulty", "Life Changes",
+                                  ifelse(Name == "priorworry" | Name == "priorhappyvssad" | Name == "priorenjoyactivities" | Name == "priorrelaxedvsanxious" | Name == "priorfidget" | Name =="priorfatigue" | Name == "priorfocus" | Name == "priorirritable" | Name == "priorlonely" | Name == "priornegthoughts", "Mood States",
+                                         ifelse(Name ==  "threemonthsalcohol" | Name == "threemonthsvaping" | Name == "threemonthstobacco" | Name == "threemonthsmarijuana" | Name ==  "threemonthsopiates" | Name =="threemonthsother" | Name == "threemonthssleepingmeds", "Substance Use",
+                         ifelse(Name == "bedtimeweekdays"| Name == "bedtimeweekends" | Name == "hoursofsleepweekdays"| Name == "hoursofsleepweekends"| Name ==  "exerciseprior"| Name ==  "outdoorsprior"| Name ==  "priortvmedia"| Name ==  "priorvideogames"| Name ==  "priorsocialmedia", "Behavior & Media", NA)))))) %>% filter(!is.na(Analysis)) %>% 
+  mutate(Name = ifelse(Name == "worriedothers", "Worried About Others",
+                       ifelse(Name == "worriedphysical" , "Physical Worries",
+                            ifelse(Name == "worriedmental" , "Mental Worries",
+                                   ifelse(Name == "readingtalking", "Reading & Talking",
+                                          ifelse(Name == "hopefullyend", "Hopefully End ",
+                                                 ifelse(Name == "positivechange", "Positive Changes",
+                                                    ifelse(Name == "timeoutside", "Time Outside Home",
+                                                        ifelse(Name == "restrictionsstress", "Stay-at-Home Stress",
+                                                               ifelse(Name == "contactschanged", "∆ Freq. Outside Contacts",
+                                                                      ifelse(Name == "difficultydistancing", "Difficulty Distancing",
+                                                                             ifelse(Name == "familychange", "∆ Family Relationships",
+                                                                                    ifelse(Name == "familychangestress", "Family Change Stress",
+                                                                                           ifelse(Name == "friendschange", "∆ Friends Relationships",
+                                                                                                  ifelse(Name == "friendchangestress", "Friend Change Stress",
+                     ifelse(Name == "difficultycancellations", "Event Cancelation Stress",
+                            ifelse(Name == "financedifficulty", "Financial Difficulty",
+                                   ifelse(Name == "foodsecurity", "Food Insecurity",
+                                          ifelse(Name == "livingdifficulty", " Housing Instability Concern",
+                                                        ifelse(Name == "bedtimeweekdays", "Bed Time Weekdays",
+                                                               ifelse(Name == "bedtimeweekends", "Bed Time Weekdends",
+                                                                      ifelse(Name == "hoursofsleepweekdays", "Hours of Sleep Weekdays",
+                                                                             ifelse(Name == "exerciseprior", "Exercise",
+                                                                                    ifelse(Name == "priorfatigue", "Fatigue",
+                                                                                           ifelse(Name == "priorfocus", "Focus",
+                                                                                                    ifelse(Name == "priorirritable", "Irritability",
+                                   ifelse(Name ==  "priornegthoughts", "Negative Thoughts",
+                                          ifelse(Name == "priortvmedia", "TV & Media",
+                                                 ifelse(Name == "outdoorsprior", "Time Outdoors",
+                                                        ifelse(Name == "priorworry", "Worry",
+                                                               ifelse(Name == "priorhappyvssad", "Happy vs. Sad",
+                                                                      ifelse(Name == "priorenjoyactivities", "Enjoy Activities",
+                                                                             ifelse(Name == "priorrelaxedvsanxious", "Relaxed vs. Anxious",
+                                                                                    ifelse(Name ==  "priorfidget", "Fidget",
+                                                                                           ifelse(Name == "threemonthsopiates", "Opiates",
+                                                                                                  ifelse(Name == "priorlonely", "Loneliness",
+                                   ifelse(Name ==  "threemonthsother", "Other Substances",
+                                          ifelse(Name == "threemonthssleepingmeds", "Sleeping Meds",
+                                                 ifelse(Name == "worriedyourself", "Worried About Self",
+                                                        ifelse(Name ==  "threemonthsalcohol", "Alcohol",
+                                                                    ifelse(Name == "threemonthsvaping", "Vaping",
+                                                                           ifelse(Name == "threemonthstobacco", "Tobacco", 
+                                                                                  ifelse(Name == "threemonthsmarijuana", "Marijuana",
+                                                                                         ifelse(Name == "inpersonconvo", "In-Person Conversation",
+                                                                                                 ifelse(Name == "hoursofsleepweekends", "Hours of Sleep Weekdends",
+                                                                                                        ifelse(Name == "priorsocialmedia", "Social Media",
+                                                                                                               ifelse(Name == "priorvideogames", "Videogames", NA)))))))))))))))))))))))))))))))))))))))))))))))
+
+                                      
+colnames = colnames %>% arrange(Analysis)
+
+colnames$Name = c("Bed Time Weekdays", "Bed Time Weekdends", "Hours of Sleep Weekdays", "Hours of Sleep Weekdends", "Exercise", "Time Outdoors", "TV & Media", "Videogames", "Social Media", "Worried About Self", "Worried About Others", "Physical Worries", "Mental Worries", "Reading & Talking", "Hopefully End", "∆ Freq. Outside Contacts" , "∆ Family Relationships", "∆ Friends Relationships", "In-Person Conversation", "Positive Changes", "Time Outside Home", "Difficulty Distancing", "Event Cancelation Stress", "Stay-at-Home Stress", "Family Change Stress", "Friend Change Stress", "Food Insecurity", "Financial Difficulty", "Housing Instability Concern", "Worry", "Happy vs. Sad", "Enjoy Activities", "Relaxed vs. Anxious", "Fidget", "Fatigue", "Focus", "Irritability", "Loneliness", "Negative Thoughts", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other Substances", "Sleeping Meds")
+                   
+                   
+```
+
+```{r, echo = F, include = F}
+
+df1 = rbind(colnames, colnames2, colnames3)
+
+df1 = df1 %>%
+  mutate_if(sapply(df1, is.character), as.factor) %>%
+    mutate_if(sapply(df1, is.numeric), as.factor)
+
+```
+
+```{r, fig.height=22, fig.width=40, echo = F, warning = F, message = F}
+
+#col1 <- brewer.pal(7, "Set1") 
+col1 = c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFF463", "#9EF7F2")
+var_plot = ggplot(df1, aes(y = 1, x = Analysis)) +
+  geom_col(aes(fill = Analysis, group = Name), color = "black", alpha = .5, size = 4) +
+  scale_fill_manual(values=col1) +
+  theme(legend.position = "none") +
+  geom_text(aes(label = Name), size = 10, vjust = 2.8, position = "stack", fontface = 'bold', color = "black") + 
+   theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+  theme(axis.text=element_text(size=5, face = "bold"),
+        axis.title=element_text(size=5,face="bold")) + 
+  theme(strip.text.x = element_text(face  = "bold", size = 10)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_discrete(expand = c(0,0), "") +
+  theme(legend.position = "none") + 
+  theme(axis.text.x = element_text(face="bold", size=)) +  
+  #ggtitle("Variables by Domain") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold", size = 60, family = "Arial")) +
+  scale_x_discrete(limits=c("COVID Impact", "COVID Worries", "Substance Use","Behavior & Media","Background", "Mood States", "Life Changes"), position = 'top') +
+   theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) +
+    theme(axis.title.x=element_blank()) +
+  theme(axis.line=element_blank(), panel.background = element_blank()) + 
+  theme(axis.text.x = element_text(face="bold", family = "Arial", size=50, color = "black")) + 
+  scale_y_reverse()
+  
+ggsave("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/domain_vars.png", dpi = 300, width = 44, height = 24)
+
+var_plot
+
+```
+
+
+
+

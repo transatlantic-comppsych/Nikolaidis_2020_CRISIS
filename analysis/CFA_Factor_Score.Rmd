@@ -1,0 +1,137 @@
+---
+title: "CFA Factor Score Creation Sample"
+author: "Jacob DeRosa"
+date: "4/25/2020"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+CFA Scores were obtained on al samples using the code structure below: 
+
+#DATA ORGANIZATION
+```{r Data_Organization}
+
+full_dataset <- read.csv('/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Combined/Adult_UK_C_Final.csv', header = TRUE, sep = ",")[-1]
+colnames = colnames(full_dataset)
+
+#Reverse code prior happyvssad variables 
+full_dataset = full_dataset %>%
+  mutate(priorhappyvssad = ifelse(priorhappyvssad == 1, "5", 
+                                ifelse(priorhappyvssad == 2, "4",
+                                       ifelse(priorhappyvssad == 3, "3",
+                                              ifelse(priorhappyvssad == 4, "2",
+                                                     ifelse(priorhappyvssad == 5, "1", NA)))))) %>%
+  mutate(priorhappyvssad_2 = ifelse(priorhappyvssad_2 == 1, "5", 
+                                ifelse(priorhappyvssad_2 == 2, "4",
+                                       ifelse(priorhappyvssad_2 == 3, "3",
+                                              ifelse(priorhappyvssad_2 == 4, "2",
+                                                     ifelse(priorhappyvssad_2 == 5, "1", NA)))))) %>%
+  select(-covid_worries, -covid_worries_resid, -ew_difference_resid, -emotion_worries_resid, -emotion_worries_2_resid, -emotion_worries, -emotion_worries_2, -ew_difference)
+
+```
+
+## CONFIRMATORY FACTOR ANALYSIS SCORES
+
+# Prior Mood States
+```{r}
+
+
+domain_data <- full_dataset %>% select(participant_id,priorirritable,priorlonely,priornegthoughts, priorfidget, priorfatigue, priorfocus,priorhappyvssad, priorenjoyactivities,priorworry, priorrelaxedvsanxious)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+cfa_model <- 'emotion_worries =~ priorworry + priorhappyvssad + priorenjoyactivities + priorrelaxedvsanxious + priorfidget + priorfatigue + priorfocus + priorirritable + priorlonely + priornegthoughts' 
+
+cfa_fit_bm <- cfa(cfa_model, data = domain_data,
+            ordered=c("priorirritable","priorlonely","priornegthoughts","priorfidget", "priorfatigue", "priorfocus","priorhappyvssad","priorenjoyactivities","priorworry", "priorrelaxedvsanxious"))
+
+
+summary(cfa_fit_bm, fit.measures = TRUE)
+
+# three month prior CFA scores 
+three_scores = data.frame(predict(cfa_fit_bm))
+df3 = cbind(domain_data, three_scores)
+
+```
+
+# Current Mood States 
+```{r}
+
+domain_data2 <- full_dataset %>% select(participant_id,priorirritable_2,priorlonely_2,priornegthoughts_2, priorfidget_2, priorfatigue_2, priorfocus_2,priorhappyvssad_2, priorenjoyactivities_2,priorworry_2, priorrelaxedvsanxious_2)
+domain_data2 <-domain_data2[complete.cases(domain_data2),]
+
+cfa_model2 <- 'emotion_worries_2 =~ priorworry_2 + priorhappyvssad_2 + priorenjoyactivities_2 + priorrelaxedvsanxious_2 + priorfidget_2 + priorfatigue_2 + priorfocus_2 + priorirritable_2 + priorlonely_2 + priornegthoughts_2' 
+
+cfa_fit_bm2 <- cfa(cfa_model2, data = domain_data2,
+            ordered=c("priorirritable_2","priorlonely_2","priornegthoughts_2","priorfidget_2", "priorfatigue_2", "priorfocus_2","priorhappyvssad_2","priorenjoyactivities_2","priorworry_2", "priorrelaxedvsanxious_2"))
+
+# two week prior CFA scores 
+two_scores = data.frame(predict(cfa_fit_bm2))
+df2 = cbind(domain_data2, two_scores)
+
+```
+
+# COVID Worries
+```{r}
+
+domain_data3 <- full_dataset %>% select(participant_id, worriedyourself, worriedothers, worriedphysical, worriedmental, readingtalking, hopefullyend)
+domain_data3<-domain_data3[complete.cases(domain_data3),]
+
+cfa_model3 <- 'covid_worries =~ worriedyourself + worriedothers + worriedphysical + worriedmental + readingtalking + hopefullyend' 
+
+cfa_fit_bm3 <- cfa(cfa_model3, data = domain_data3, ordered=c("worriedyourself", "worriedothers", "worriedphysical", "worriedmental", "readingtalking", "hopefullyend"))
+summary(cfa_fit_bm3, fit.measures = TRUE)
+
+cov_scores = data.frame(predict(cfa_fit_bm3))
+df_cov = cbind(cov_scores, domain_data3)
+
+```
+
+Join and Save All Factor Scores 
+```{r}
+
+#join threee month scores to two week scores 
+df = df2 %>% full_join(df3)
+
+#calculate difference between three months and two weeks 
+df$ew_difference = df$emotion_worries - df$emotion_worries_2
+
+# select all factor scores and add to dataset 
+df_comb = df %>%
+  select(participant_id, emotion_worries, emotion_worries_2, ew_difference) %>%
+  full_join(full_dataset)
+
+df_final = df_cov %>%
+  select(participant_id, covid_worries) %>%
+  full_join(df_comb)
+
+df_final = as.data.frame(df_final[,colnames])
+
+write.csv(df_final, 'C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Combined/Adult_UK_C_Updated.csv')
+
+```

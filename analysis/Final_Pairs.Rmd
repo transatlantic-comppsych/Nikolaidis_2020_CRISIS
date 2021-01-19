@@ -1,0 +1,370 @@
+---
+title: "Factor Pairs Plot"
+author: "Jacob DeRosa"
+date: "7/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(fields)
+library(dplyr)
+library("GGally")
+library(extrafont)
+loadfonts(device = "win")
+```
+
+```{r}
+
+library(dplyr)
+
+Adult_UK = read.csv("/Users/jacob.derosa/Documents//Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_UK_Updated.csv", header = T, sep = ",")[-1] %>% rename("Prior Mood States" = emotion_worries) %>% 
+  rename("Current Mood States" = emotion_worries_2) %>% 
+  rename("Δ Mood States" = ew_difference) %>% 
+  rename("COVID Worries" = covid_worries)
+
+Adult_US = read.csv("/Users/jacob.derosa/Documents//Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_US_Updated.csv", header = T, sep = ",")[-1] %>% rename("Prior Mood States" = emotion_worries) %>% 
+  rename("Current Mood States" = emotion_worries_2) %>% 
+  rename("Δ Mood States" = ew_difference) %>% 
+  rename("COVID Worries" = covid_worries)
+
+Parent_UK = read.csv("/Users/jacob.derosa/Documents//Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_UK_Updated.csv", header = T, sep = ",")[-1] %>% rename("Prior Mood States" = emotion_worries) %>% 
+  rename("Current Mood States" = emotion_worries_2) %>% 
+  rename("Δ Mood States" = ew_difference) %>% 
+  rename("COVID Worries" = covid_worries)
+
+Parent_US = read.csv("/Users/jacob.derosa/Documents//Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_US_Updated.csv", header = T, sep = ",")[-1] %>% rename("Prior Mood States" = emotion_worries) %>% 
+  rename("Current Mood States" = emotion_worries_2) %>% 
+  rename("Δ Mood States" = ew_difference) %>% 
+  rename("COVID Worries" = covid_worries)
+
+```
+
+```{r, echo=F, include=F, message=F}
+
+GGscatterPlot <- function(data, mapping, ..., 
+                        method = "pearson") {
+
+#Get correlation coefficient
+    x <- GGally::eval_data_col(data, mapping$x)
+    y <- GGally::eval_data_col(data, mapping$y)
+
+    cor <- cor(x, y, method = method)
+#Assemble data frame
+    df <- data.frame(x = x, y = y)
+
+#Prepare plot
+    pp <- ggplot(df, aes(x=x, y=y)) +
+                ggplot2::geom_point(shape=16, alpha = .4,show.legend = F) +
+                ggplot2::geom_smooth(method = "lm", col = "darkred", size = 2, fill = "darkred", alpha = .2) +
+      scale_x_continuous(breaks=seq(-2,3,1)) +
+      scale_y_continuous(breaks=seq(-2,3,1)) + 
+      expand_limits(x=c(-2,3),y=c(-2,3)) +
+  theme(
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank(),
+        panel.border = element_blank(), panel.background = element_blank()) +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+        axis.text.x=element_text(colour="black", size = 10),
+        axis.text.y=element_text(colour="black", size = 10),
+        legend.key=element_rect(fill="white", colour="white")) + 
+    theme(axis.text.x = element_text(size= 23, face = "bold")) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30), 
+    legend.text = element_text(size = 30)) 
+    
+return(pp)
+}
+
+GGdens <- function(data, mapping, ..., 
+                        method = "pearson") {
+
+#Get correlation coefficient
+    x <- GGally::eval_data_col(data, mapping$x)
+    y <- GGally::eval_data_col(data, mapping$y)
+
+#Prepare plot
+    pp <- ggplot(data, aes(x=x)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.05, fill="darkred") +
+      geom_vline(aes(xintercept=mean(x), color="darkred"),
+             linetype="dashed") + 
+       scale_x_continuous(limits = c(-2, 3)) + 
+    theme(
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank(),
+        panel.border = element_blank(), panel.background = element_blank()) +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+        axis.text.x=element_text(colour="black", size = 10),
+        axis.text.y=element_text(colour="black", size = 10),
+        legend.key=element_rect(fill="white", colour="white")) + 
+    theme(axis.text.x = element_text(size= 23, face = "bold")) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30), 
+    legend.text = element_text(size = 30)) 
+    
+    
+return(pp)
+}
+
+
+```
+
+# Adult UK
+```{r, echo=F, message = F, fig.height=15, fig.width=15}
+
+UK_1 = Adult_UK %>% select("Prior Mood States", "Current Mood States","Δ Mood States", "COVID Worries") %>% na.omit(.)
+
+UK_1 = as.data.frame(sapply(UK_1, function(x){x = as.numeric(x)}))
+
+
+p1 = GGally::ggpairs(UK_1,
+                lower = list(continuous = GGscatterPlot),
+                #diag=list(continuous=wrap("barDiag", fill="black",  alpha = .4)),
+                diag=list(continuous=GGdens),
+                upper = list(continuous = wrap("cor", method= "pearson", size = 17, color = "black", family = "arial", face = "bold"))) + 
+  theme(panel.background = element_rect(color="white"), 
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank()) +
+  theme(plot.title = element_text(size = 14, face = "bold",family = "arial"),
+        axis.text.x=element_text(colour="black", size = 10,family = "arial"),
+        axis.text.y=element_text(colour="black", size = 10,family = "arial"),
+        legend.key=element_rect(fill="white", colour="white")) + 
+    theme(axis.text.x = element_text(size= 23, face = "bold",family = "arial")) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20,family = "arial"),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30,family = "arial"), 
+    legend.text = element_text(size = 30,family = "arial")) + 
+   theme(strip.text = element_text(face="bold", size=20,family = "arial"),
+        strip.background = element_blank()) + 
+  theme(legend.position = "none", 
+        panel.grid.major = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.border =element_rect(size=4, colour = "black", fill = NA))
+
+# Correlation matrix plot
+p2 <- ggcorr(UK_1, label = TRUE, label_round = 3)
+
+g2 <- ggplotGrob(p2)
+colors <- g2$grobs[[6]]$children[[3]]$gp$fill
+
+p=4
+idx <- 1
+for (k1 in 1:(p-1)) {
+  for (k2 in (k1+1):p) {
+    plt <- getPlot(p1,k1,k2) +
+     theme(panel.background = element_rect(fill = colors[idx], color="white"),
+           panel.grid.major = element_line(color=colors[idx]))
+    p1 <- putPlot(p1,plt,k1,k2)
+    idx <- idx+1
+}
+}
+print(p1)
+
+
+```
+
+# Adult US
+```{r, echo=F, message = F, fig.height=15, fig.width=15}
+US_1 = Adult_US %>% select("Prior Mood States", "Current Mood States","Δ Mood States", "COVID Worries") %>% na.omit(.)
+
+US_1 = as.data.frame(sapply(US_1, function(x){x = as.numeric(x)}))
+
+p1 = GGally::ggpairs(US_1,
+                lower = list(continuous = GGscatterPlot),
+                #diag=list(continuous=wrap("barDiag", fill="black",  alpha = .4)),
+                diag=list(continuous=GGdens),
+                upper = list(continuous = wrap("cor", method= "pearson", size = 17, color = "black", family = "arial", face = "bold"))) + 
+  theme(panel.background = element_rect(color="white"), 
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank()) +
+  theme(plot.title = element_text(size = 14, face = "bold",family = "arial"),
+        axis.text.x=element_text(colour="black", size = 10,family = "arial"),
+        axis.text.y=element_text(colour="black", size = 10,family = "arial"),
+        legend.key=element_rect(fill="white", colour="white")) + 
+    theme(axis.text.x = element_text(size= 23, face = "bold",family = "arial")) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20,family = "arial"),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30,family = "arial"), 
+    legend.text = element_text(size = 30,family = "arial")) + 
+   theme(strip.text = element_text(face="bold", size=20,family = "arial"),
+        strip.background = element_blank()) + 
+  theme(legend.position = "none", 
+        panel.grid.major = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.border =element_rect(size=4, colour = "black", fill = NA))
+
+
+# Correlation matrix plot
+p2 <- ggcorr(US_1, label = TRUE, label_round = 3)
+
+g2 <- ggplotGrob(p2)
+colors <- g2$grobs[[6]]$children[[3]]$gp$fill
+
+p=4
+idx <- 1
+for (k1 in 1:(p-1)) {
+  for (k2 in (k1+1):p) {
+    plt <- getPlot(p1,k1,k2) +
+     theme(panel.background = element_rect(fill = colors[idx], color="white"),
+           panel.grid.major = element_line(color=colors[idx]))
+    p1 <- putPlot(p1,plt,k1,k2)
+    idx <- idx+1
+}
+}
+print(p1)
+
+```
+
+# Parent US 
+```{r, echo=F, message = F, fig.height=15, fig.width=15}
+
+US_1 = Parent_US %>% select("Prior Mood States", "Current Mood States","Δ Mood States", "COVID Worries") %>% na.omit(.)
+
+US_1 = as.data.frame(sapply(US_1, function(x){x = as.numeric(x)}))
+
+p1 = GGally::ggpairs(US_1,
+                lower = list(continuous = GGscatterPlot),
+                #diag=list(continuous=wrap("barDiag", fill="black",  alpha = .4)),
+                diag=list(continuous=GGdens),
+                upper = list(continuous = wrap("cor", method= "pearson", size = 17, color = "black", family = "arial", face = "bold"))) + 
+  theme(panel.background = element_rect(color="white"), 
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank()) +
+  theme(plot.title = element_text(size = 14, face = "bold",family = "arial"),
+        axis.text.x=element_text(colour="black", size = 10,family = "arial"),
+        axis.text.y=element_text(colour="black", size = 10,family = "arial"),
+        legend.key=element_rect(fill="white", colour="white")) + 
+    theme(axis.text.x = element_text(size= 23, face = "bold",family = "arial")) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20,family = "arial"),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30,family = "arial"), 
+    legend.text = element_text(size = 30,family = "arial")) + 
+   theme(strip.text = element_text(face="bold", size=20,family = "arial"),
+        strip.background = element_blank()) + 
+  theme(legend.position = "none", 
+        panel.grid.major = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.border =element_rect(size=4, colour = "black", fill = NA))
+
+
+# Correlation matrix plot
+p2 <- ggcorr(US_1, label = TRUE, label_round = 3)
+
+g2 <- ggplotGrob(p2)
+colors <- g2$grobs[[6]]$children[[3]]$gp$fill
+
+p=4
+idx <- 1
+for (k1 in 1:(p-1)) {
+  for (k2 in (k1+1):p) {
+    plt <- getPlot(p1,k1,k2) +
+     theme(panel.background = element_rect(fill = colors[idx], color="white"),
+           panel.grid.major = element_line(color=colors[idx]))
+    p1 <- putPlot(p1,plt,k1,k2)
+    idx <- idx+1
+}
+}
+print(p1)
+
+```
+
+# Parent UK
+```{r, echo=F, message = F, fig.height=15, fig.width=15}
+UK_1 = Parent_UK %>% select("Prior Mood States", "Current Mood States","Δ Mood States", "COVID Worries") %>% na.omit(.)
+
+UK_1 = as.data.frame(sapply(UK_1, function(x){x = as.numeric(x)}))
+
+
+p1 = GGally::ggpairs(UK_1,
+                lower = list(continuous = GGscatterPlot),
+                #diag=list(continuous=wrap("barDiag", fill="black",  alpha = .4)),
+                diag=list(continuous=GGdens),
+                upper = list(continuous = wrap("cor", method= "pearson", size = 17, color = "black", family = "arial", face = "bold"))) + 
+  theme(panel.background = element_rect(color="white"), 
+        panel.grid.major = element_line(colour = "#d3d3d3"), panel.grid.minor = element_blank()) +
+  theme(plot.title = element_text(size = 14, face = "bold",family = "arial"),
+        axis.text.x=element_text(colour="black", size = 10,family = "arial"),
+        axis.text.y=element_text(colour="black", size = 10,family = "arial"),
+        legend.key=element_rect(fill="white", colour="white")) + 
+    theme(axis.text.x = element_text(size= 23, face = "bold",family = "arial")) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black", 
+                           size=20,family = "arial"),
+    axis.ticks.length=unit(0.3,"cm"),
+    axis.ticks.x=element_line(size=2),
+    axis.ticks.y=element_line(size=2)) + 
+  theme(
+    legend.title = element_text(size = 30,family = "arial"), 
+    legend.text = element_text(size = 30,family = "arial")) + 
+   theme(strip.text = element_text(face="bold", size=20,family = "arial"),
+        strip.background = element_blank()) + 
+  theme(legend.position = "none", 
+        panel.grid.major = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.border =element_rect(size=4, colour = "black", fill = NA))
+
+
+# Correlation matrix plot
+p2 <- ggcorr(UK_1, label = TRUE, label_round = 3)
+
+g2 <- ggplotGrob(p2)
+colors <- g2$grobs[[6]]$children[[3]]$gp$fill
+
+p=4
+idx <- 1
+for (k1 in 1:(p-1)) {
+  for (k2 in (k1+1):p) {
+    plt <- getPlot(p1,k1,k2) +
+     theme(panel.background = element_rect(fill = colors[idx], color="white"),
+           panel.grid.major = element_line(color=colors[idx]))
+    p1 <- putPlot(p1,plt,k1,k2)
+    idx <- idx+1
+}
+}
+print(p1)
+
+```

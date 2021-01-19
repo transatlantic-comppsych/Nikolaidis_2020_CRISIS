@@ -1,0 +1,174 @@
+---
+title: "Random Forest Follow Up Analysis"
+author: "Jacob DeRosa"
+date: "6/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+Adult_US = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_US_Updated_07272020.csv", header = T, sep = ",") 
+Adult_UK = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_UK_Updated_07272020.csv", header = T, sep = ",")
+Parent_US = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_US_Updated_07272020.csv", header = T, sep = ",")
+Parent_UK = read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_UK_Updated_07272020.csv", header = T, sep = ",")
+
+```
+
+#US 
+```{r}
+
+cor.test(Adult_US$emotion_worries_2, Adult_US$covid_worries, use = "complete.obs", method = "pearson") #obtain correlations 
+cor.test(Adult_US$emotion_worries_2, Adult_US$emotion_worries, use = "complete.obs", method = "pearson") #obtain correlations 
+Adult_US$Louvain_Cluster_LC = as.factor(Adult_US$Louvain_Cluster_LC)
+Adult_US$Age = as.factor(Adult_US$Age)
+
+#run follow up ANOVAS with subtypes and age bins 
+dvnames = c("Louvain_Cluster_LC", "Age")
+model_cov_us <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Adult_US)})
+sapply(model_cov_us, car::Anova,simplify =  F)
+
+```
+
+#UK 
+```{r}
+
+cor.test(Adult_UK$emotion_worries_2, Adult_UK$covid_worries, use = "complete.obs", method = "pearson")
+cor.test(Adult_UK$emotion_worries_2, Adult_UK$emotion_worries, use = "complete.obs", method = "pearson")
+
+Adult_UK$Louvain_Cluster_LC = as.factor(Adult_UK$Louvain_Cluster_LC)
+Adult_UK$Age = as.factor(Adult_UK$Age)
+dvnames = c("Louvain_Cluster_LC", "Age")
+model_cov_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Adult_UK)})
+sapply(model_cov_uk, car::Anova,simplify =  F)
+
+
+```
+
+
+#US Parent
+```{r}
+
+cor.test(Parent_US$emotion_worries_2, Parent_US$covid_worries, use = "complete.obs", method = "pearson")
+cor.test(Parent_US$emotion_worries_2, Parent_US$emotion_worries, use = "complete.obs", method = "pearson")
+
+Parent_US$Louvain_Cluster_LC = as.factor(Parent_US$Louvain_Cluster_LC)
+Parent_US$physicalhealth = as.factor(Parent_US$physicalhealth)
+dvnames = c("Louvain_Cluster_LC", "physicalhealth")
+model_cov_us <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Parent_US)})
+sapply(model_cov_us, car::Anova,simplify =  F)
+
+
+```
+
+#UK Parent
+```{r}
+
+cor.test(Parent_UK$emotion_worries_2, Parent_UK$covid_worries, use = "complete.obs", method = "pearson")
+cor.test(Parent_UK$emotion_worries_2, Parent_UK$emotion_worries, use = "complete.obs", method = "pearson")
+
+Parent_UK$Louvain_Cluster_LC = as.factor(Parent_UK$Louvain_Cluster_LC)
+Parent_UK$physicalhealth = as.factor(Parent_UK$physicalhealth)
+dvnames = c("Louvain_Cluster_LC", "physicalhealth")
+model_cov_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Parent_UK)})
+sapply(model_cov_uk, car::Anova,simplify =  F)
+
+```
+
+
+                                                                            ### Hold Out ###
+ 
+```{r}
+
+Adult_US = read.csv("C:/Users/jacob.derosa/Documents/Hold_Out/Final_Datasets/Adult_US_Holdout_Updated.csv", header = T, sep = ",") 
+
+Adult_UK = read.csv("C:/Users/jacob.derosa/Documents/Hold_Out/Final_Datasets/Adult_UK_Holdout_Updated.csv", header = T, sep = ",") 
+
+Parent_US = read.csv("C:/Users/jacob.derosa/Documents/Hold_Out/Final_Datasets/Parent_US_Holdout_Updated.csv", header = T, sep = ",") 
+
+Parent_UK = read.csv("C:/Users/jacob.derosa/Documents/Hold_Out/Final_Datasets/Parent_UK_Holdout_Updated.csv", header = T, sep = ",") 
+
+```
+
+#US 
+```{r}
+
+cor.test(Adult_US$emotion_worries_2, Adult_US$covid_worries, use = "complete.obs", method = "pearson")
+
+cor.test(Adult_US$emotion_worries_2, Adult_US$emotion_worries, use = "complete.obs", method = "pearson")
+
+Adult_US$Louvain_Cluster_LC = as.factor(Adult_US$Louvain_Cluster_LC)
+
+Adult_US$Age = as.factor(Adult_US$Age)
+  
+dvnames = c("Louvain_Cluster_LC", "Age")
+            
+model_cov_us <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Adult_US)})
+sapply(model_cov_us, car::Anova,simplify =  F)
+
+```
+
+#UK 
+```{r}
+
+cor.test(Adult_UK$emotion_worries_2, Adult_UK$covid_worries, use = "complete.obs", method = "pearson")
+
+cor.test(Adult_UK$emotion_worries_2, Adult_UK$emotion_worries, use = "complete.obs", method = "pearson")
+
+Adult_UK$Louvain_Cluster_LC = as.factor(Adult_UK$Louvain_Cluster_LC)
+
+Adult_UK$Age = as.factor(Adult_UK$Age)
+  
+dvnames = c("Louvain_Cluster_LC", "Age")
+            
+model_cov_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Adult_UK)})
+sapply(model_cov_uk, car::Anova,simplify =  F)
+
+
+```
+
+#US Parent
+```{r}
+
+cor.test(Parent_US$emotion_worries_2, Parent_US$covid_worries, use = "complete.obs", method = "pearson")
+cor.test(Parent_US$emotion_worries_2, Parent_US$emotion_worries, use = "complete.obs", method = "pearson")
+
+Parent_US$Louvain_Cluster_LC = as.factor(Parent_US$Louvain_Cluster_LC)
+Parent_US$physicalhealth = as.factor(Parent_US$physicalhealth)
+  
+dvnames = c("Louvain_Cluster_LC", "physicalhealth")
+            
+model_cov_us <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Parent_US)})
+sapply(model_cov_us, car::Anova,simplify =  F)
+
+
+```
+
+#UK Parent
+```{r}
+
+cor.test(Parent_UK$emotion_worries_2, Parent_UK$covid_worries, use = "complete.obs", method = "pearson")
+cor.test(Parent_UK$emotion_worries_2, Parent_UK$emotion_worries, use = "complete.obs", method = "pearson")
+
+
+Parent_UK$Louvain_Cluster_LC = as.factor(Parent_UK$Louvain_Cluster_LC)
+Parent_UK$physicalhealth = as.factor(Parent_UK$physicalhealth)
+  
+dvnames = c("Louvain_Cluster_LC", "physicalhealth")
+            
+model_cov_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = Parent_UK)})
+sapply(model_cov_uk, car::Anova,simplify =  F)
+
+```

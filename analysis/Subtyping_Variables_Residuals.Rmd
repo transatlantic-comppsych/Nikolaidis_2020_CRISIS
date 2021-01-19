@@ -1,0 +1,231 @@
+---
+title: "Subtyping Factor Score Residuals"
+date: "4/25/2020"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+Remove effects of Survey Responder Age and Sex from Subtyping Variables 
+
+```{r Data_Organization}
+
+fulldataset <-  read.csv('/Users/jacob.derosa/Documents/Crisis_Split_Data/Adult_US_combined.csv', header = TRUE, sep = ",")
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, bedtimeweekdays, bedtimeweekends, hoursofsleepweekdays,
+         hoursofsleepweekends, exerciseprior, outdoorsprior, priortvmedia, 
+         priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, 
+         threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother, threemonthssleepingmeds)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:19], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+
+domain_data[,20:35] = scale(domain_data[,20:35])
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/ADULT_US_C.csv")
+```
+
+
+```{r Data_Organization}
+fulldataset <-  read.csv('/Users/jacob.derosa/Documents/Crisis_Split_Data/Adult_UK_combined.csv', header = TRUE, sep = ",")
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, bedtimeweekdays, bedtimeweekends, hoursofsleepweekdays,
+         hoursofsleepweekends, exerciseprior, outdoorsprior, priortvmedia, 
+         priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, 
+         threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother, threemonthssleepingmeds)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:19], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+domain_data[,20:35] = scale(domain_data[,20:35])
+
+
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/ADULT_UK_C.csv")
+```
+
+
+```{r Data_Organization}
+
+fulldataset <-  read.csv('/Users/jacob.derosa/Documents/Crisis_Split_Data/Adult_US_combined.csv', header = TRUE, sep = ",") %>%
+  mutate(inpersonconvo_bin = ifelse(inpersonconvo == 0, 1, 
+                                   ifelse(inpersonconvo > 0 & inpersonconvo < 4, 2,
+                                          ifelse(inpersonconvo >=4, 3, NA))))
+
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:17], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+domain_data[,18:31] = scale(domain_data[,18:31])
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/ADULT_US_C_lf.csv")
+```
+
+
+```{r Data_Organization}
+fulldataset <-  read.csv('/Users/jacob.derosa/Documents/Crisis_Split_Data/Adult_UK_combined.csv', header = TRUE, sep = ",")%>%
+  mutate(inpersonconvo_bin = ifelse(inpersonconvo == 0, 1, 
+                                   ifelse(inpersonconvo > 0 & inpersonconvo < 4, 2,
+                                          ifelse(inpersonconvo >=4, 3, NA))))
+
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:17], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+domain_data[,18:31] = scale(domain_data[,18:31])
+
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/ADULT_UK_C_lf.csv")
+```
+
+
+```{r Data_Organization}
+
+fulldataset <-  read.csv("/Users/jacob.derosa/Documents/Crisis_Split_Data/Parent_US_combined.csv",header = TRUE, sep = ",")
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, priorweekdaybedtime , priorweekendbedtime , priorhoursofsleepweekdays , priorhoursofsleepweekend , exerciseprior , outdoorsprior , priortvmedia , priorsocialmedia,priorvideogames, 
+         priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, 
+         threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother, threemonthssleepingmeds)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:19], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+domain_data[,20:35] = scale(domain_data[,20:35])
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/Parent_US_C.csv")
+```
+
+
+```{r Data_Organization}
+
+fulldataset <-  read.csv("/Users/jacob.derosa/Documents/Crisis_Split_Data/Parent_UK_combined.csv",header = TRUE, sep = ",") 
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, priorweekdaybedtime , priorweekendbedtime , priorhoursofsleepweekdays , priorhoursofsleepweekend , exerciseprior , outdoorsprior , priortvmedia , priorsocialmedia,priorvideogames, 
+         priorsocialmedia, priorvideogames, threemonthsalcohol, threemonthsvaping, 
+         threemonthstobacco, threemonthsmarijuana, threemonthsopiates, threemonthsother, threemonthssleepingmeds)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:19], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+domain_data[,20:35] = scale(domain_data[,20:35])
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/Parent_UK_C.csv")
+```
+
+
+```{r Data_Organization}
+
+fulldataset <-  read.csv('/Users/jacob.derosa/Documents/Crisis_Split_Data/Parent_US_combined.csv', header = TRUE, sep = ",") %>%
+  mutate(inpersonconvo_bin = ifelse(inpersonconvo == 0, 1, 
+                                   ifelse(inpersonconvo > 0 & inpersonconvo < 4, 2,
+                                          ifelse(inpersonconvo >=4, 3, NA))))
+
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:17], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+domain_data[,18:31] = scale(domain_data[,18:31])
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/Parent_US_C_lf.csv")
+```
+
+
+```{r Data_Organization}
+fulldataset <-  read.csv('/Users/jacob.derosa/Documents/Crisis_Split_Data/Parent_UK_combined.csv', header = TRUE, sep = ",")%>%
+  mutate(inpersonconvo_bin = ifelse(inpersonconvo == 0, 1, 
+                                   ifelse(inpersonconvo > 0 & inpersonconvo < 4, 2,
+                                          ifelse(inpersonconvo >=4, 3, NA))))
+
+
+domain_data = fulldataset %>%
+  select(participant_id, years, sex, positivechange,inpersonconvo_bin,timeoutside,restrictionsstress,contactschanged,difficultydistancing,familychange,familychangestress,friendschange,friendchangestress,difficultycancellations,financedifficulty,livingdifficulty,foodsecurity)
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+formula <- as.formula(paste0("cbind(", paste(names(domain_data)[4:17], collapse = ","), ") ~ years + sex"))
+fit <- lm(formula, data=domain_data)
+domain_data_2 = resid(fit) 
+colnames(domain_data_2) = paste0('R_', colnames(domain_data_2))
+domain_data = cbind(domain_data, domain_data_2)
+domain_data[,18:31] = scale(domain_data[,18:31])
+
+
+write.csv(domain_data, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Clustering_Splits/Parent_UK_C_lf.csv")
+```
+
+
+
+
+

@@ -1,0 +1,726 @@
+---
+title: "Adult Behavior & Media: Louvain Final Cluster Profiles"
+author: "Jacob DeRosa"
+date: "6/18/2020"
+output:
+  html_document:
+    number_sections: no
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, echo = F, include = F}
+#load Libraries 
+library(knitr)
+library(dplyr)
+library(purrr)
+library(reshape2)
+library(tidyr)
+library(stringi)
+library(ggplot2)
+library(ggiraphExtra)
+library(gplots)
+#install.packages("https://cran.r-project.org/src/contrib/Archive/hybridHclust/hybridHclust_1.0-5.tar.gz", repos = NULL, type = "source")
+library(hybridHclust)
+library(RColorBrewer)
+library(viridis)
+library(igraph)
+```
+
+```{r, echo = F, include = F}
+adj_full =  read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full.csv", header=T, sep = ",")[-1]
+rownames(adj_full) = colnames(adj_full)
+adj_full = as.matrix(adj_full)
+
+adj_full2 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full2.csv", header=T, sep = ",")[-1]
+rownames(adj_full2) = colnames(adj_full2)
+adj_full2 = as.matrix(adj_full2)
+
+adj_full3 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full3.csv", header=T, sep = ",")[-1]
+rownames(adj_full3) = colnames(adj_full3)
+adj_full3 = as.matrix(adj_full3)
+
+adj_full4 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full4.csv", header=T, sep = ",")[-1]
+rownames(adj_full4) = colnames(adj_full4)
+adj_full4 = as.matrix(adj_full4)
+
+adj_full5 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full5.csv", header=T, sep = ",")[-1]
+rownames(adj_full5) = colnames(adj_full5)
+adj_full5 = as.matrix(adj_full5)
+
+adj_full6 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full6.csv", header=T, sep = ",")[-1]
+rownames(adj_full6) = colnames(adj_full6)
+adj_full6 = as.matrix(adj_full6)
+
+adj_full7 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full7.csv", header=T, sep = ",")[-1]
+rownames(adj_full7) = colnames(adj_full7)
+adj_full7 = as.matrix(adj_full7)
+
+adj_full8 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full8.csv", header=T, sep = ",")[-1]
+rownames(adj_full8) = colnames(adj_full8)
+adj_full8 = as.matrix(adj_full8)
+
+adj_full9 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full9.csv", header=T, sep = ",")[-1]
+rownames(adj_full9) = colnames(adj_full9)
+adj_full9 = as.matrix(adj_full9)
+
+adj_full10 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/USA_BH_Adj/USA_BH_adj_full10.csv", header=T, sep = ",")[-1]
+rownames(adj_full10) = colnames(adj_full10) 
+adj_full10 = as.matrix(adj_full10)
+
+#python df is a dataframe that contains all the subjects: URSI (subject ID), CBCL scores, diagnosis, age, and Sex
+python_df = read.csv("~/Combined_Clustering/Clustering_Splits/ADULT_US_C.csv") %>%
+  rename(Key = X)
+#python_list = list(python_df) #put python df into list that will merged with sample split dfs 
+
+```
+
+```{r, echo = F, include = F}
+
+memory.limit(10000000000000)
+
+list = list(adj_full, adj_full2, adj_full10, adj_full3, adj_full4, adj_full5, adj_full6, adj_full7, adj_full8, adj_full9)
+
+adj_full_1 = acast(rbind(melt(adj_full), melt(adj_full2), melt(adj_full3),melt(adj_full4),melt(adj_full5),melt(adj_full6),melt(adj_full7),melt(adj_full8),
+                       melt(adj_full9),melt(adj_full10)), Var1~Var2, sum)  
+
+adj_full_1 = acast(rbind(melt(list)), Var1~Var2, sum)
+
+adj_full_2 = adj_full_1/10000
+
+#load final cluster assignements from community detection clustering run from pytyhon. This csv contains the subject ID and final cluster assignments. 
+subs2 <- data.frame("Key" = rownames(adj_full_2))
+
+subs2$Key <- gsub("X","",subs2$Key)
+
+```
+
+
+```{r, echo =F, include=F}
+
+x <- scale(adj_full_2)
+
+#normalize adjacency matrix prior to clustering 
+dmat <- 1-cor(x, method = "spearman") #This correlation-based distance is equivalent to squared Euclidean distance once rows have been scaled to have mean 0 and standard deviation 1. 
+
+dimnames(dmat) <- list(1:nrow(dmat),1:nrow(dmat)) #add subject ID as rownames in matrix 
+# find and print MCs
+mc1 <- mutualCluster(distances=dmat,plot=TRUE)
+print(mc1)
+get.distances(mc1)
+# find hybrid hierarchical model and explore it
+hyb1 <- hybridHclust(t(x),mc1,trace=TRUE)
+plot(hyb1)
+hyb=cutree(hyb1,3) #according to dendrogram a 4 cluster solution seems appropriate, the number after the comma indicates the number of cluster extracted. 
+subs2$cluster= factor(hyb) #add hierarchical cluster assignments to cluster data frame that includes subject ID.
+
+G1 <- graph.adjacency(adj_full_2, mode = "undirected", weighted = TRUE, diag = TRUE)
+clusterlouvain <- cluster_louvain(G1)
+subs2$Louvain_Cluster = factor(clusterlouvain$membership)
+
+
+```
+
+# ***Heatamps***
+
+Louvain Clusters = Column Color Bar,
+Agglomerative Clusters = Row Color Bar
+
+## US
+Adjusted Rand Index = 0.9638973
+```{r, echo = F}
+
+gr.row <- hyb # hierarchical cluster assignments
+gr.col = subs2$Louvain_Cluster
+
+col1 <- brewer.pal(6, "Set1")
+col2 <- brewer.pal(6, "Dark2")
+library(viridis)
+col = viridis_pal(100)
+
+heatmap.2(dmat,
+          Rowv=as.dendrogram(hyb1),
+          Colv=as.dendrogram(hyb1),
+          RowSideColors=col1[gr.row],
+          ColSideColors=col2[gr.col],
+          col=viridis_pal(),
+          labRow = F,
+          labCol = F,
+          main = "Heatmap",
+          trace = "none")
+
+```
+
+```{r, echo = F, include = F}
+
+split_1 = merge(subs2, python_df, by = c("Key")) %>%
+    select(participant_id, cluster, Louvain_Cluster, R_bedtimeweekdays, R_bedtimeweekends, R_hoursofsleepweekdays,
+         R_hoursofsleepweekends, R_exerciseprior, R_outdoorsprior, R_priortvmedia, 
+         R_priorsocialmedia, R_priorvideogames, R_threemonthsalcohol, R_threemonthsvaping, 
+         R_threemonthstobacco, R_threemonthsmarijuana, R_threemonthsopiates, R_threemonthsother, R_threemonthssleepingmeds)
+
+write.csv(split_1, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Created_Clusters/Adult_US_C.csv")
+
+```
+
+```{r, echo = F, include = F}
+adj_full = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full.csv", header=T, sep = ",")[-1]
+rownames(adj_full) = colnames(adj_full)
+adj_full = as.matrix(adj_full)
+
+adj_full2 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full2.csv", header=T, sep = ",")[-1]
+rownames(adj_full2) = colnames(adj_full2)
+adj_full2 = as.matrix(adj_full2)
+
+adj_full3 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full3.csv", header=T, sep = ",")[-1]
+rownames(adj_full3) = colnames(adj_full3)
+adj_full3 = as.matrix(adj_full3)
+
+adj_full4 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full4.csv", header=T, sep = ",")[-1]
+rownames(adj_full4) = colnames(adj_full4)
+adj_full4 = as.matrix(adj_full4)
+
+adj_full5 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full5.csv", header=T, sep = ",")[-1]
+rownames(adj_full5) = colnames(adj_full5)
+adj_full5 = as.matrix(adj_full5)
+
+adj_full6 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full6.csv", header=T, sep = ",")[-1]
+rownames(adj_full6) = colnames(adj_full6)
+adj_full6 = as.matrix(adj_full6)
+
+adj_full7 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full7.csv", header=T, sep = ",")[-1]
+rownames(adj_full7) = colnames(adj_full7)
+adj_full7 = as.matrix(adj_full7)
+
+adj_full8 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full8.csv", header=T, sep = ",")[-1]
+rownames(adj_full8) = colnames(adj_full8)
+adj_full8 = as.matrix(adj_full8)
+
+adj_full9 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full9.csv", header=T, sep = ",")[-1]
+rownames(adj_full9) = colnames(adj_full9)
+adj_full9 = as.matrix(adj_full9)
+
+adj_full10 = read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/UKA_BH_Adj/UKA_BH_adj_full10.csv", header=T, sep = ",")[-1]
+rownames(adj_full10) = colnames(adj_full10) 
+adj_full10 = as.matrix(adj_full10)
+
+
+#python df is a dataframe that contains all the subjects: URSI (subject ID), CBCL scores, diagnosis, age, and Sex
+python_df = read.csv("~/Combined_Clustering/Clustering_Splits/ADULT_UK_C.csv") %>%
+  rename(Key = X)
+#python_list = list(python_df) #put python df into list that will merged with sample split dfs 
+
+```
+
+```{r, echo = F, include = F}
+
+
+list = list(adj_full, adj_full2, adj_full10, adj_full3, adj_full4, adj_full5, adj_full6, adj_full7, adj_full8, adj_full9)
+
+adj_full_1 = acast(rbind(melt(adj_full), melt(adj_full2), melt(adj_full3),melt(adj_full4),melt(adj_full5),melt(adj_full6),melt(adj_full7),melt(adj_full8),
+                       melt(adj_full9),melt(adj_full10)), Var1~Var2, sum)  
+
+adj_full_1 = acast(rbind(melt(list)), Var1~Var2, sum)
+
+adj_full_2 = adj_full_1/10000
+
+#load final cluster assignements from community detection clustering run from pytyhon. This csv contains the subject ID and final cluster assignments. 
+subs2 <- data.frame("Key" = rownames(adj_full_2))
+
+
+subs2$Key <- gsub("X","",subs2$Key)
+
+```
+
+
+```{r, echo =F, include=F}
+
+x <- scale(adj_full_2)
+
+#normalize adjacency matrix prior to clustering 
+dmat <- 1-cor(x, method = "spearman") #This correlation-based distance is equivalent to squared Euclidean distance once rows have been scaled to have mean 0 and standard deviation 1. 
+
+dimnames(dmat) <- list(1:nrow(dmat),1:nrow(dmat)) #add subject ID as rownames in matrix 
+# find and print MCs
+mc1 <- mutualCluster(distances=dmat,plot=TRUE)
+print(mc1)
+get.distances(mc1)
+# find hybrid hierarchical model and explore it
+hyb1 <- hybridHclust(t(x),mc1,trace=TRUE)
+plot(hyb1)
+hyb=cutree(hyb1,4) #according to dendrogram a 4 cluster solution seems appropriate, the number after the comma indicates the number of cluster extracted. 
+subs2$cluster= factor(hyb) #add hierarchical cluster assignments to cluster data frame that includes subject ID.
+
+
+G1 <- graph.adjacency(adj_full_2, mode = "undirected", weighted = TRUE, diag = TRUE)
+clusterlouvain <- cluster_louvain(G1)
+subs2$Louvain_Cluster = factor(clusterlouvain$membership)
+
+
+```
+
+## UK
+Adjusted Rand Index = 0.7569932 
+```{r, echo = F}
+
+gr.row <- hyb # hierarchical cluster assignments
+gr.col = subs2$Louvain_Cluster
+
+col1 <- brewer.pal(6, "Set1")
+col2 <- brewer.pal(6, "Dark2")
+library(viridis)
+col = viridis_pal(100)
+
+heatmap.2(dmat,
+          Rowv=as.dendrogram(hyb1),
+          Colv=as.dendrogram(hyb1),
+          RowSideColors=col1[gr.row],
+          ColSideColors=col2[gr.col],
+          col=viridis_pal(),
+          labRow = F,
+          labCol = F,
+          main = "Heatmap",
+          trace = "none")
+
+```
+
+```{r, echo = F, include = F}
+
+split_1 = merge(subs2, python_df, by = c("Key")) %>%
+    select(participant_id, cluster, Louvain_Cluster, R_bedtimeweekdays, R_bedtimeweekends, R_hoursofsleepweekdays,
+         R_hoursofsleepweekends, R_exerciseprior, R_outdoorsprior, R_priortvmedia, 
+         R_priorsocialmedia, R_priorvideogames, R_threemonthsalcohol, R_threemonthsvaping, 
+         R_threemonthstobacco, R_threemonthsmarijuana, R_threemonthsopiates, R_threemonthsother, R_threemonthssleepingmeds)
+
+write.csv(split_1, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Created_Clusters/Adult_UK_C.csv")
+
+```
+
+```{r, warning = F, echo = F, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+library(sjPlot)
+library(CGPfunctions)
+library(car)
+library(broom)
+library(corrplot)
+library(reshape2)
+library(RColorBrewer)
+library(ggiraphExtra)
+library(fmsb)
+```
+
+```{r, warning = F, echo = F,include=F}
+
+fulldataset_uk_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Factor_Scores/Adult_UK_Combined_with_F.csv", header = T, sep = ",")
+fulldataset_us_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Factor_Scores/Adult_US_Combined_with_F.csv", header = T, sep = ",") 
+
+UK_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Created_Clusters/Adult_UK_C.csv", header = T, sep = ",") %>% 
+  select(participant_id, cluster, Louvain_Cluster, R_bedtimeweekdays, R_bedtimeweekends, R_hoursofsleepweekdays,
+         R_hoursofsleepweekends, R_exerciseprior, R_outdoorsprior, R_priortvmedia, 
+         R_priorsocialmedia, R_priorvideogames, R_threemonthsalcohol, R_threemonthsvaping, 
+         R_threemonthstobacco, R_threemonthsmarijuana, R_threemonthsopiates, R_threemonthsother, R_threemonthssleepingmeds)
+
+UK_1 = merge(UK_1, fulldataset_uk_1, by = c("participant_id"))
+UK_1 = UK_1[,c(1,23:328, 2:22)]
+
+UK_1 = UK_1 %>% 
+  mutate(cluster = ifelse(cluster == "1", "2",
+                          ifelse(cluster == "2", "3",
+                                 ifelse(cluster == "3","1", 
+                                        ifelse(cluster == "4", "4",NA))))) %>%
+  mutate(Louvain_Cluster = ifelse(Louvain_Cluster == "1", "1",
+                          ifelse(Louvain_Cluster == "2", "3",
+                                 ifelse(Louvain_Cluster == "3","2",NA))))
+
+
+full_uk_1 = UK_1 %>%
+  full_join(fulldataset_uk_1) %>%
+  rename(cluster_bm = cluster) %>%
+  select(-X)
+
+#write.csv(full_uk_1, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Adult_UK_Split_C_BM.csv")
+
+UK_Louvain = full_uk_1 %>% select(participant_id, Louvain_Cluster) %>% rename(Louvain_Cluster_BM = Louvain_Cluster)
+write.csv(UK_Louvain, "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Adult_UK_Louvain_BM.csv")
+
+#_____________________________________________________________________________________________________________________________________________________________#
+
+US_1 <- read.csv("C:/Users/jacob.derosa/Documents/Combined_Clustering/Created_Clusters/Adult_US_C.csv", header = T, sep = ",") %>% 
+  select(participant_id, cluster, Louvain_Cluster, R_bedtimeweekdays, R_bedtimeweekends, R_hoursofsleepweekdays,
+         R_hoursofsleepweekends, R_exerciseprior, R_outdoorsprior, R_priortvmedia, 
+         R_priorsocialmedia, R_priorvideogames, R_threemonthsalcohol, R_threemonthsvaping, 
+         R_threemonthstobacco, R_threemonthsmarijuana, R_threemonthsopiates, R_threemonthsother, R_threemonthssleepingmeds)
+
+US_1 = merge(US_1, fulldataset_us_1, by = c("participant_id"))
+US_1 = US_1[,c(1,23:328, 2:22)]
+
+full_us_1 = US_1 %>%
+  full_join(fulldataset_us_1) %>%
+  rename(cluster_bm = cluster) %>%
+  select(-X)
+
+#write.csv(full_us_1, "C:/Users/jacob.derosa/Documents/Combined_Clustering/Adult_US_Split_C_BM.csv")
+
+US_Louvain = full_us_1 %>% select(participant_id, Louvain_Cluster) %>% rename(Louvain_Cluster_BM = Louvain_Cluster)
+write.csv(US_Louvain, "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Adult_US_Louvain_BM.csv")
+
+
+```
+
+```{r, warning = F, echo = F, include = F}
+
+#From data sets for each split with clusters and CBCL scores begin by grouping CBCL scores by cluster then create mean for each CBCL subscale summarised by cluster
+list_r = list(UK_1 = UK_1, US_1 = US_1)
+#list_r = list(UK_1 = UK_1)
+split_r = list()
+
+for (i in 1:length(list_r)){
+  split_r[[i]] = list_r[[i]] %>%
+    group_by(Louvain_Cluster) %>%
+    summarise(   
+      BTWK = mean(R_bedtimeweekdays),
+      BTWKN = mean(R_bedtimeweekends),
+      HSW = mean(R_hoursofsleepweekdays),
+      HSWK = mean(R_hoursofsleepweekends),
+      EXCR = mean(R_exerciseprior),
+      OUTD = mean(R_outdoorsprior),
+      TVM = mean(R_priortvmedia),
+      VDG = mean(R_priorvideogames),
+      Sm = mean(R_priorsocialmedia),
+      ALC = mean(R_threemonthsalcohol),
+      VAPE = mean(R_threemonthsvaping),
+      TOBCO = mean(R_threemonthstobacco) ,
+      MJ = mean(R_threemonthsmarijuana) ,
+      OPIA = mean(R_threemonthsopiates) ,
+      OTHR = mean(R_threemonthsother) ,
+      SLPMD = mean(R_threemonthssleepingmeds) 
+      
+    )
+  names(split_r)[[i]] = names(list_r)[[i]]
+}
+
+```
+
+```{r, warning = F, echo = F, include = F}
+#From data sets for each split with Louvain_Clusters and CBCL scores begin by grouping CBCL scores by Louvain_Cluster then create mean for each CBCL subscale summarised by Louvain_Cluster
+list = list(UK_1 = UK_1, US_1 = US_1)
+split = list()
+
+for (i in 1:length(list)){
+  split[[i]] = list[[i]] %>%
+    group_by(Louvain_Cluster) %>%
+    summarise(
+      BTWK = mean(bedtimeweekdays),
+      BTWKN = mean(bedtimeweekends),
+      HSW = mean(hoursofsleepweekdays),
+      HSWK = mean(hoursofsleepweekends),
+      EXCR = mean(exerciseprior),
+      OUTD = mean(outdoorsprior),
+      TVM = mean(priortvmedia),
+      VDG = mean(priorvideogames),
+      ALC = mean(threemonthsalcohol),
+      VAPE = mean(threemonthsvaping),
+      TOBCO = mean(threemonthstobacco) ,
+      MJ = mean(threemonthsmarijuana) ,
+      OPIA = mean(threemonthsopiates) ,
+      OTHR = mean(threemonthsother) ,
+      SLPMD = mean(threemonthssleepingmeds) 
+      
+    )
+  names(split)[i] = names(list)[[i]]
+}
+
+#_____________________________________________________________________________________________________________________________________________________
+
+
+full_UK_US_1 = list(UK_1= split["UK_1"], US_1= split["US_1"]) 
+
+
+full_list_UK_US_1 = do.call(Map, c(f = rbind, full_UK_US_1)) #row binds both split lists together by matching interation. Creates Louvain_Cluster x subscale matrix 
+
+transposeList_UK_US_1 <- t(full_list_UK_US_1[1]) 
+
+
+UK_US_1_mat = data.frame(transposeList_UK_US_1[1]) %>% select(-Louvain_Cluster)
+
+cor_UK_US_1 = cor(t(UK_US_1_mat), method = "pearson", use="pairwise.complete.obs") #function to apply pearson correlation on each subscale x Louvain_Cluster matrix 
+
+cor = list(cor_UK_US_1 = cor_UK_US_1)
+#_____________________________________________________________________________________________________________________________________________________
+
+
+# create empty lists to store matched Louvain_Clusters max correlation values 
+results = list() #empty list that goes through 2 steps: 1) intialized to have 3 columns (Var 1 = Louvain_Cluster from split 1, Var 2 = Louvain_Cluster from split 2, Cor = max correlation value between the matched Louvain_Clusters)
+maxval = list() #empy list that will be used to store the maxium correlation value at each step of the max correlation process 
+max = list() #empty list that will be used to store highest matched Louvain_Cluster max correlation values after each iteration and turn their scores to 0 back in the correlation matrix once matched to the loop will match the next Louvain_Clusters by max correlation. 
+
+# loop through each correlation matrix and look at the maximum correlation at each step. So the first step will not look only at the first row, but at the whole matrix
+for (i in 1:length(cor)){
+  rownames(cor[[i]]) <- colnames(cor[[i]]) #Louvain_Cluster rows are renamed to letter assingments that will be matched under Var 1 and Var2.
+  results[[i]] <- data.frame(v1=character(0), v2=character(0), cor=numeric(0), stringsAsFactors=FALSE)
+  diag(cor[[i]]) <- 0 #set diagonal to 0 prevent self correlation matching 
+  
+  #loops through each correlation maxtrix and match Louvain_Clusters  
+  while (sum(cor[[i]]>0)>1) {
+    maxval[[i]] <- max(cor[[i]]) 
+    max[[i]] <- which(cor[[i]]==maxval[[i]], arr.ind=TRUE)[1,]
+    results[[i]] <- rbind(results[[i]], data.frame(v1=rownames(cor[[i]])[max[[i]][1]], v2=colnames(cor[[i]])[max[[i]][2]], cor=maxval[[i]]))
+    cor[[i]][max[[i]][1],] <- 0
+    cor[[i]][,max[[i]][1]] <- 0
+    cor[[i]][max[[i]][2],] <- 0
+    cor[[i]][,max[[i]][2]] <- 0
+  }
+  matchedcors <- lapply(results,function(x){t(x[,3])}) #extracts only matched Louvain_Cluster's correlation value by for each results list that are in long form and transposes it to wide format  
+}
+
+```
+
+```{r, warning = F,echo = F, include = F}
+cor = list(cor_UK_US_1=cor_UK_US_1)
+cormat = list()
+upper_tri = list()
+dd = list()
+hh = list()
+melted_cormat = list()
+lower_tri = list()
+#Compute the max correlation matrix heatmap of  matched Louvain_Clusters max correlation values 
+
+for(i in 1:length(cor)){
+  cormat[[i]] = round(cor[[i]], 2) #round correlation matrix values to include only 2 numbers 
+  round(cor(cormat[[i]], use="pairwise.complete.obs"), 2)
+  # Get lower triangle of the correlation matrix
+  
+  get_lower_tri<-function(cormat){
+  cormat[upper.tri(cormat)] <- NA
+  return(cormat)
+  }
+# Get upper triangle of the correlation matri
+  get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+  }
+  
+  upper_tri[[i]] <- get_upper_tri(cormat[[i]])
+  lower_tri[[i]] <- get_lower_tri(cormat[[i]])
+    
+  reorder_cormat <- function(cormat){
+ # Use correlation between variables as distance
+  dd <- as.dist((1-cormat)/2)
+  hc <- hclust(dd)
+  cormat <-cormat[hc$order, hc$order]
+  }
+  cormat[[i]] <- reorder_cormat(cormat[[i]])
+  upper_tri[[i]] <- get_upper_tri(cormat[[i]])
+  melted_cormat[[i]] <- melt(upper_tri[[i]], na.rm = TRUE)
+  
+  results[[i]]$cor = round(results[[i]]$cor, 2)
+}
+
+
+```
+# ***Cluster Profiles***
+
+```{r, fig.height=10.7, fig.width=10.5, echo=F, message =F, warning=F}
+
+data = as.data.frame(split_r["US_1"])[,-1]
+
+colnames(data) = c( "Weekday
+Bedtime","Weekend
+Bedtime","Sleep
+Weekdays", "Sleep
+Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social
+Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other
+Substance", "Sleeping Meds")
+
+#data <- rbind(rep(5,17) , rep(0,16) , data)
+
+data <- rbind(rep(1.5,16) , rep(-1.5,16) , data)
+
+rownames(data) = c("max", "min", "Cluster 1", "Cluster 2", "Cluster 3") #"Cluster 4")
+
+colors_fill = c(scales::alpha("#440154FF", 0.05),
+                scales::alpha("#3B528BFF", 0.05),
+                #scales::alpha("#FDE725FF", 0.05),
+                scales::alpha("#73D055FF", 0.05))
+
+# Define line colors
+colors_line = c(scales::alpha("#440154FF", 1),
+                scales::alpha("#3B528BFF", 1),
+                #scales::alpha("#FDE725FF", 1),
+                scales::alpha("#73D055FF", 1))
+
+grid_color = scales::alpha("black", 0.5)
+
+radarchart(data, 
+           axistype = 1,
+           seg = 4,  # Number of axis segments
+           title = "Adult US Behavior Meddia Profiles",
+           pcol = colors_line,
+           pfcol = colors_fill,
+           plwd = 7,
+           vlcex=1.25,
+           cglcol = grid_color,
+           cglwd = 2,
+           cglty = 1.5,
+           pty=32,
+           axislabcol="black",
+           plty = 1,
+           cex.main=1.75,
+           caxislabels=seq(-1.5,1,.5))
+
+# Add a legend
+legend(x="topright", 
+       #y="topright", 
+       legend = rownames(data[-c(1,2),]), 
+       bty = "n", pch=20 , col = colors_line, cex =1.3, pt.cex = 3)
+
+
+```
+
+```{r, fig.height=10.7, fig.width=10.5, echo=F, message =F, warning=F}
+
+data = as.data.frame(split_r["UK_1"])[,-1]
+
+colnames(data) = c( "Weekday
+Bedtime","Weekend
+Bedtime","Sleep
+Weekdays", "Sleep
+Weekends", "Exercise", "Outdoors", "TV & Media", "Videogames", "Social
+Media", "Alcohol", "Vaping", "Tobacco", "Marijuana", "Opiates", "Other
+Substance", "Sleeping Meds")
+
+data <- rbind(rep(1.5,16) , rep(-1.5,16) , data)
+
+rownames(data) = c("max", "min", "Cluster 1", "Cluster 2", "Cluster 3")#, "Cluster 4")
+
+colors_fill = c(scales::alpha("#440154FF", 0.05),
+                scales::alpha("#3B528BFF", 0.05),
+                #scales::alpha("#FDE725FF", 0.05),
+                scales::alpha("#73D055FF", 0.05))
+
+# Define line colors
+colors_line = c(scales::alpha("#440154FF", 1),
+                scales::alpha("#3B528BFF", 1),
+                #scales::alpha("#FDE725FF", 1),
+                scales::alpha("#73D055FF", 1))
+
+
+grid_color = scales::alpha("black", 0.5)
+library(fmsb)
+radarchart(data, 
+           axistype = 1,
+           seg = 4,  # Number of axis segments
+           title = "Adult UK Behavior Media Profiles",
+           pcol = colors_line,
+           pfcol = colors_fill,
+           plwd = 7,
+           vlcex=1.25,
+           cglcol = grid_color,
+           cglwd = 2,
+           cglty = 1.5,
+           pty=32,
+           axislabcol="black",
+           plty = 1,
+           cex.main=1.75,
+           caxislabels=seq(-1.5,1,.5))
+
+# Add a legend
+legend(x="topright", 
+       #y="topright", 
+       legend = rownames(data[-c(1,2),]), 
+       bty = "n", pch=20 , col = colors_line, cex =1.3, pt.cex = 3)
+
+
+
+```
+
+```{r, warning = F,echo = F, include = F}
+reuslts_uk_us_1 = data.frame(results[1])
+
+reuslts_uk_us_1$v2 <- as.character(reuslts_uk_us_1$v2)
+
+
+reuslts_uk_us_1$v1 <- as.character(reuslts_uk_us_1$v1)
+
+
+reuslts_uk_us_1$v1 <- factor(reuslts_uk_us_1$v1, levels=c("US_1.3", "US_1.2", "US_1.1"))
+reuslts_uk_us_1$v2 <- factor(reuslts_uk_us_1$v2, levels=c("UK_1.3", "UK_1.2", "UK_1.1"))
+
+ggheatmap <- ggplot(reuslts_uk_us_1, aes(forcats::fct_rev(factor(v2)), v1, fill = cor))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") + 
+  theme_minimal()+ # minimal theme
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1))+
+  theme(axis.text.y = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1))+
+  coord_fixed()
+```
+
+```{r, warning = F,echo = F, fig.width=7, fig.height=10}
+
+
+ggheatmap + 
+  geom_text(aes(forcats::fct_rev(factor(v2)), v1, label = cor), color = "black", size = 11, family = c("arial"), fontface = c("bold")) +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(-0.4, -0.7),
+    legend.direction = "horizontal")+
+  guides(fill = guide_colorbar(barwidth =5, barheight = 1,
+                               title.position = "top", title.hjust = 0.3))  
+```
+
+```{r, warning = F,echo = F, include = F}
+library(corrplot)
+col<- colorRampPalette(c("blue","red"))(20)
+#corrplot(US_lowers, method="number", type="lower", col = col)
+
+
+UK_US_1_lowers = data.frame(cormat[1])
+UK_US_1_lowers = as.matrix(UK_US_1_lowers)
+
+```
+# ***Correlations***
+
+```{r, warning = F,echo = F, fig.width=7, fig.height=10}
+
+#corrplot(US_lowers, method="number", type="lower", col = col)
+corrplot(UK_US_1_lowers, method="color", col=col,  
+         type="lower", order="hclust", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE, 
+        mar=c(0,0,1,0)
+         )
+```
+
+
+

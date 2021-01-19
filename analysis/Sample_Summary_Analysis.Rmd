@@ -1,0 +1,419 @@
+---
+title: "Adult and Parent Demos, Subtype, & Factor Score Analysis"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r, warning = F, echo = F, include=FALSE}
+library(dplyr)
+library(erer)
+library(knitr)
+library(purrr)
+```
+
+```{r, warning = F, echo = F,include=F}
+
+UK <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_UK_Updated_07272020.csv", header = T, sep = ",")[-1] 
+US <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Adult_Combined/Adult_US_Updated_07272020.csv", header = T, sep = ",")[-1]
+recoded_Crisis <- read.csv("C:/Users/jacob.derosa/Downloads/recoded_Crisis.csv", header = T, sep = ",")
+
+#work variable labeling:
+# code it as like, had job prior to pandemic and is still working / had job prior to pandemic and is not still working / did not have job prior to pandemic
+#school variable labeling
+#school closed but classes resumed online / school closed but classes did not resume online / school did not close / NA
+
+Adult = rbind(US, UK) %>% select(-participant_id, -sample, -regsam, -retest, -hash_dup_id) %>%
+  inner_join(recoded_Crisis, by=c("uid")) %>%
+   mutate(age = ifelse(years < 30, "Under 30", 
+                        ifelse(years >= 30 & years <= 49, "30-49", 
+                               ifelse(years > 49, "Over 50", NA)))) %>%
+  mutate(house_comp = ifelse(hhcomp == 0, "Living Alone", 
+                             ifelse(hhcomp == 1, "Partner", 
+                                    ifelse(hhcomp == 2 | hhcomp == 3, "Immediate no partner", 
+                                           ifelse(hhcomp == 4, "Other", 
+                                                  ifelse(hhcomp == 5 | hhcomp == 6, "Partner and Family", NA)))))) %>%
+     mutate(Education = ifelse(education == 1 | education == 2, "Less High School", 
+                                     ifelse(education == 3, "High School or GED", 
+                                            ifelse(education == 4, "Some College or 2 year degree", 
+                                                   ifelse(education == 5 | education == 6, "Some School beyond collge", 
+                                                                 ifelse(education == 7, "Graduate or professional degree", NA)))))) %>% 
+  mutate(newschool = as.factor(ifelse(schoolclosed == 1 & onlineclasses == 1, "onlineclasses",
+                                              ifelse(schoolclosed == 0, "inpersonclasses",
+                                                     ifelse(schoolclosed == 1 & onlineclasses == 0, "closesnoclass",
+                                                            ifelse(schoolclosed == 2, "notapplicable", NA))))))
+
+
+Sample_Adult_US = unique(US$sample)
+Sample_Adult_UK = unique(UK$sample)
+         
+List = list(Sample_Adult_UK, Sample_Adult_US)
+
+
+colnames = list("sex", "age", "informant_race2", "newschool", "work", "fam_esntl_wrkr", "fam_impact_any", "fam_dx", "exp", "sx_ct3")
+
+```
+
+```{r}
+get_mean_emotion = function(data, list, col_name) {
+  data %>% 
+    filter(!is.na(UQ(sym(col_name))))%>%
+    filter(!is.na(emotion_worries))%>%
+    filter(sample %in% list)%>%
+      mutate(Dataset = ifelse(sample == "Adult_London" | sample == "Adult_Manchester" | sample == "Adult_UK", "UK", 
+                              ifelse(sample == "Adult_US" | sample == "Adult_US_CA" | sample == "Adult_US_NY", "US", NA))) %>%
+    select(Dataset, uid, col_name, emotion_worries)%>%
+    group_by_("Dataset", col_name)%>%
+    summarise(Mean = mean(emotion_worries), SD = sd(emotion_worries))
+}
+
+    
+get_mean_emotion_2 = function(data, list, col_name) {
+  data %>% 
+    filter(!is.na(UQ(sym(col_name))))%>%
+    filter(!is.na(emotion_worries_2))%>%
+    filter(sample %in% list)%>%
+      mutate(Dataset = ifelse(sample == "Adult_London" | sample == "Adult_Manchester" | sample == "Adult_UK", "UK", 
+                              ifelse(sample == "Adult_US" | sample == "Adult_US_CA" | sample == "Adult_US_NY", "US", NA))) %>%
+    select(Dataset, uid, col_name, emotion_worries_2)%>%
+    group_by_("Dataset", col_name)%>%
+    summarise(Mean = mean(emotion_worries_2), SD = sd(emotion_worries_2))
+}
+
+get_mean_covid = function(data, list, col_name) {
+  data %>% 
+    filter(!is.na(UQ(sym(col_name))))%>%
+    filter(!is.na(covid_worries))%>%
+    filter(sample %in% list)%>%
+      mutate(Dataset = ifelse(sample == "Adult_London" | sample == "Adult_Manchester" | sample == "Adult_UK", "UK", 
+                              ifelse(sample == "Adult_US" | sample == "Adult_US_CA" | sample == "Adult_US_NY", "US", NA))) %>%
+    select(Dataset, uid, col_name, covid_worries)%>%
+    group_by_("Dataset", col_name)%>%
+    summarise(Mean = mean(covid_worries), SD = sd(covid_worries))
+}
+
+
+```
+
+```{r}
+
+US %>% filter(!is.na(covid_worries)) %>% summarise(Mean = round(mean(covid_worries),1), SD = round(sd(covid_worries),1))
+
+US %>% filter(!is.na(emotion_worries)) %>% summarise(Mean = round(mean(emotion_worries),1), SD = round(sd(emotion_worries),1))
+
+US %>% filter(!is.na(emotion_worries_2)) %>% summarise(Mean = round(mean(emotion_worries_2),1), SD = round(sd(emotion_worries_2),1))
+
+UK %>% filter(!is.na(covid_worries)) %>% summarise(Mean = round(mean(covid_worries),1), SD = round(sd(covid_worries),1))
+
+UK %>% filter(!is.na(emotion_worries)) %>% summarise(Mean = round(mean(emotion_worries),1), SD = round(sd(emotion_worries),1))
+
+UK %>% filter(!is.na(emotion_worries_2)) %>% summarise(Mean = round(mean(emotion_worries_2),1), SD = round(sd(emotion_worries_2),1))
+
+```
+
+Adult US ANOVA
+```{r}
+
+AOV_US = Adult %>% filter(sample == "Adult_US" | sample == "Adult_US_CA" | sample == "Adult_US_NY") %>%
+  select(sex, age, informant_race2, newschool, work, fam_esntl_wrkr, fam_impact_any, fam_dx, exp, sx_ct3, emotion_worries, emotion_worries_2, covid_worries)
+
+dvnames = names(AOV_US)[1:10]
+AOV_US[1:10] = lapply(AOV_US[1:10], function(x){x = factor(x)})
+
+model_cov <- lapply(dvnames, function(x) {
+  lm(substitute(covid_worries ~ i, list(i = as.name(x))), data = AOV_US)})
+sapply(model_cov, car::Anova,simplify =  F)
+
+model_ew <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries ~ i, list(i = as.name(x))), data = AOV_US)})
+sapply(model_ew, car::Anova,simplify =  F)
+
+model_ew2 <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = AOV_US)})
+sapply(model_ew2, car::Anova,simplify =  F)
+
+```
+
+ADULT UK ANOVA
+```{r}
+
+AOV_UK = Adult %>% filter(sample == "Adult_London" | sample == "Adult_Manchester" | sample == "Adult_UK") %>%
+  select(sex, age, informant_race2, newschool, work, fam_esntl_wrkr, fam_impact_any, fam_dx, exp, sx_ct3, emotion_worries, emotion_worries_2, covid_worries)
+dvnames = names(AOV_UK)[1:10]
+AOV_UK[1:10] = lapply(AOV_UK[1:10], function(x){x = factor(x)})
+
+model_cov_uk <- lapply(dvnames, function(x) {
+  lm(substitute(covid_worries ~ i, list(i = as.name(x))), data = AOV_UK)})
+sapply(model_cov_uk, car::Anova,simplify =  F)
+
+model_ew_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries ~ i, list(i = as.name(x))), data = AOV_UK)})
+sapply(model_ew_uk, car::Anova,simplify =  F)
+
+model_ew2_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = AOV_UK)})
+sapply(model_ew2_uk, car::Anova,simplify =  F)
+
+```
+
+Adult Mean and SD
+```{r, echo = F, include = F}
+
+Adult_Covid = c()
+Adult_Emotion = c()
+Adult_Emotion_2 = c()
+
+for (i in (1:length(colnames))) {
+  Adult_Covid[[i]] = map_df(List, get_mean_covid, data = Adult, col_name = colnames[[i]])
+}
+
+for (i in (1:length(colnames))) {
+  Adult_Emotion[[i]] = map_df(List, get_mean_emotion, data = Adult, col_name = colnames[[i]])
+}
+
+for (i in (1:length(colnames))) {
+  Adult_Emotion_2[[i]] = map_df(List, get_mean_emotion_2, data = Adult, col_name = colnames[[i]])
+}
+
+write.list(z = Adult_Emotion, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Adult_Emotion_Factor_Summary.csv")
+write.list(z = Adult_Emotion_2, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Adult_Emotion_2_Factor_Summary.csv")
+write.list(z = Adult_Covid, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Adult_COVID_Factor_Summary.csv")
+
+```
+
+Subtype Mean and SD
+```{r}
+Subtype_Covid = c()
+Subtype_Emotion = c()
+Subtype_Emotion_2 = c()
+
+colnames = list("Louvain_Subtype_LC", "Louvain_Subtype_BM")
+
+
+for (i in (1:length(colnames))) {
+  Subtype_Covid[[i]] = map_df(List, get_mean_covid, data = Adult, col_name = colnames[[i]])
+}
+
+for (i in (1:length(colnames))) {
+  Subtype_Emotion[[i]] = map_df(List, get_mean_emotion, data = Adult, col_name = colnames[[i]])
+}
+
+for (i in (1:length(colnames))) {
+  Subtype_Emotion_2[[i]] = map_df(List, get_mean_emotion_2, data = Adult, col_name = colnames[[i]])
+}
+
+write.list(z = Subtype_Emotion, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Subtype_Emotion_Factor_Summary.csv")
+write.list(z = Subtype_Emotion_2, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Subtype_Emotion_2_Factor_Summary.csv")
+write.list(z = Subtype_Covid, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Subtype_COVID_Factor_Summary.csv")
+
+```
+
+```{r, echo = F}
+
+UK_P <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_UK_Updated_07272020.csv", header = T, sep = ",")[-1] 
+US_P <- read.csv("C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Updated_Datasets/Parent_Combined/Parent_US_Updated_07272020.csv", header = T, sep = ",")[-1]
+recoded_Crisis <- read.csv("C:/Users/jacob.derosa/Downloads/recoded_Crisis.csv", header = T, sep = ",")
+```
+
+Parent Group Percentage Calculation
+```{r}
+
+UK_P %>% group_by(Louvain_Subtype_BM, schoolclosed) %>% 
+  filter(!is.na(schoolclosed))%>%
+  summarise(count = n() ) %>%
+  mutate(prop = round(100*count / sum(count),2))
+
+```
+
+```{r}
+
+Parent = rbind(US_P, UK_P) %>% select(-participant_id, -sample, -regsam, -retest, -hash_dup_id) %>%
+  inner_join(recoded_Crisis, by=c("uid")) %>%
+   mutate(age = ifelse(years < 30, "30_under", 
+                        ifelse(years >= 30 & years <= 49, "30-49", 
+                               ifelse(years > 49, "50_over", NA)))) %>%
+  mutate(house_comp = ifelse(hhcomp == 0, "Living Alone", 
+                             ifelse(hhcomp == 1, "Partner", 
+                                    ifelse(hhcomp == 2 | hhcomp == 3, "Immediate no partner", 
+                                           ifelse(hhcomp == 4, "Other", 
+                                                  ifelse(hhcomp == 5 | hhcomp == 6, "Partner and Family", NA)))))) %>%
+     mutate(Education = ifelse(education == 1 | education == 2, "Less High School", 
+                                     ifelse(education == 3, "High School or GED", 
+                                            ifelse(education == 4, "Some College or 2 year degree", 
+                                                   ifelse(education == 5 | education == 6, "Some School beyond collge", 
+                                                                 ifelse(education == 7, "Graduate or professional degree", NA)))))) %>% 
+  mutate(newschool = as.factor(ifelse(schoolclosed == 1 & onlineclasses == 1, "onlineclasses",
+                                              ifelse(schoolclosed == 0, "inpersonclasses",
+                                                     ifelse(schoolclosed == 1 & onlineclasses == 0, "closesnoclass",
+                                                            ifelse(schoolclosed == 2, "notapplicable", NA)))))) %>% 
+  mutate(childage = ifelse(years_2 <= 5, "5_Under",
+                           ifelse(years_2 > 5 & years_2 <=13, "6-13",
+                                  ifelse(years_2 > 13 & years_2 <= 17, "13-17",
+                                         ifelse(years_2 > 17, "18_over", NA)))))
+
+colnames_p = list("sex", "age", "childage", "informant_race2", "newschool", "fam_esntl_wrkr", "fam_impact_any", "fam_dx", "exp", "sx_ct3")
+
+Sample_Adult_US_Parent = unique(US_P$sample)
+Sample_Adult_UK_Parent = unique(UK_P$sample)
+
+```
+
+```{r}
+List = list(Sample_Adult_UK_Parent, Sample_Adult_US_Parent)
+
+get_mean_emotion = function(data, list, col_name) {
+  data %>% 
+    filter(!is.na(UQ(sym(col_name))))%>%
+    filter(!is.na(emotion_worries))%>%
+    filter(sample %in% list)%>%
+      mutate(Dataset = ifelse(sample == "Parent_UK_London" | sample == "Parent_UK_Manchester" | sample == "Parent_UK", "UK", 
+                              ifelse(sample == "Parent_US" | sample == "Parent_US_CA" | sample == "Parent_US_NY", "US", NA))) %>%
+    select(Dataset, uid, col_name, emotion_worries)%>%
+    group_by_("Dataset", col_name)%>%
+    summarise(Mean = mean(emotion_worries), SD = sd(emotion_worries))
+}
+
+    
+get_mean_emotion_2 = function(data, list, col_name) {
+  data %>% 
+    filter(!is.na(UQ(sym(col_name))))%>%
+    filter(!is.na(emotion_worries_2))%>%
+    filter(sample %in% list)%>%
+        mutate(Dataset = ifelse(sample == "Parent_UK_London" | sample == "Parent_UK_Manchester" | sample == "Parent_UK", "UK", 
+                              ifelse(sample == "Parent_US" | sample == "Parent_US_CA" | sample == "Parent_US_NY", "US", NA))) %>%
+    select(Dataset, uid, col_name, emotion_worries_2)%>%
+    group_by_("Dataset", col_name)%>%
+    summarise(Mean = mean(emotion_worries_2), SD = sd(emotion_worries_2))
+}
+
+get_mean_covid = function(data, list, col_name) {
+  data %>% 
+    filter(!is.na(UQ(sym(col_name))))%>%
+    filter(!is.na(covid_worries))%>%
+    filter(sample %in% list)%>%
+        mutate(Dataset = ifelse(sample == "Parent_UK_London" | sample == "Parent_UK_Manchester" | sample == "Parent_UK", "UK", 
+                              ifelse(sample == "Parent_US" | sample == "Parent_US_CA" | sample == "Parent_US_NY", "US", NA))) %>%
+    select(Dataset, uid, col_name, covid_worries)%>%
+    group_by_("Dataset", col_name)%>%
+    summarise(Mean = mean(covid_worries), SD = sd(covid_worries))
+}
+
+```
+
+Parent Subtype Mean and SD 
+```{r}
+Subtype_Covid = c()
+Subtype_Emotion = c()
+Subtype_Emotion_2 = c()
+
+colnames = list("Louvain_Subtype_LC", "Louvain_Subtype_BM")
+
+for (i in (1:length(colnames))) {
+  Subtype_Covid[[i]] = map_df(List, get_mean_covid, data = Parent, col_name = colnames[[i]])
+}
+
+for (i in (1:length(colnames))) {
+  Subtype_Emotion[[i]] = map_df(List, get_mean_emotion, data = Parent, col_name = colnames[[i]])
+}
+
+for (i in (1:length(colnames))) {
+  Subtype_Emotion_2[[i]] = map_df(List, get_mean_emotion_2, data = Parent, col_name = colnames[[i]])
+}
+
+write.list(z = Subtype_Emotion, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Parent_Subtype_Emotion_Factor_Summary.csv")
+write.list(z = Subtype_Emotion_2, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Parent_Subtype_Emotion_2_Factor_Summary.csv")
+write.list(z = Subtype_Covid, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Parent_Subtype_COVID_Factor_Summary.csv")
+
+```
+
+Parent Mean SD
+```{r}
+
+Sample_Adult_US_Parent = unique(US_P$sample)
+Sample_Adult_UK_Parent = unique(UK_P$sample)
+         
+List = list(Sample_Adult_UK_Parent, Sample_Adult_US_Parent)
+
+Parent_Covid = c()
+Parent_Emotion = c()
+Parent_Emotion_2 = c()
+
+for (i in (1:length(colnames_p))) {
+  Parent_Covid[[i]] = map_df(List, get_mean_covid, data = Parent, col_name = colnames_p[[i]])
+}
+
+for (i in (1:length(colnames_p))) {
+  Parent_Emotion[[i]] = map_df(List, get_mean_emotion, data = Parent, col_name = colnames_p[[i]])
+}
+
+for (i in (1:length(colnames_p))) {
+  Parent_Emotion_2[[i]] = map_df(List, get_mean_emotion_2, data = Parent, col_name = colnames_p[[i]])
+}
+
+write.list(z = Parent_Emotion, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Parent_Emotion_Factor_Summary.csv")
+write.list(z = Parent_Emotion_2, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Parent_Emotion_2_Factor_Summary.csv")
+write.list(z = Parent_Covid, file = "C:/Users/jacob.derosa/Documents/Updated_Regsam_Splits/Factor_Score_Summary/Parent_COVID_Factor_Summary.csv")
+
+```
+
+Parent US ANOVA
+```{r}
+
+AOV_US_P = Parent %>% filter(sample == "Parent_US" | sample == "Parent_US_CA" | sample == "Parent_US_NY") %>%
+    select(sex, age, childage, informant_race2, newschool, fam_esntl_wrkr, fam_impact_any, fam_dx, exp, sx_ct3, emotion_worries, emotion_worries_2, covid_worries)
+
+dvnames = names(AOV_US_P)[1:10]
+AOV_US_P[1:10] = lapply(AOV_US_P[1:10], function(x){x = factor(x)})
+
+model_cov <- lapply(dvnames, function(x) {
+  lm(substitute(covid_worries ~ i, list(i = as.name(x))), data = AOV_US_P)})
+sapply(model_cov, car::Anova,simplify =  F)
+
+model_ew <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries ~ i, list(i = as.name(x))), data = AOV_US_P)})
+sapply(model_ew, car::Anova,simplify =  F)
+
+model_ew2 <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = AOV_US_P)})
+sapply(model_ew2, car::Anova,simplify =  F)
+
+
+AOV_US_P %>% filter(!is.na(emotion_worries_2)) %>% summarise(Mean = round(mean(emotion_worries_2),1), SD = round(sd(emotion_worries_2),1))
+
+AOV_US_P %>% filter(!is.na(covid_worries)) %>% summarise(Mean = round(mean(covid_worries),1), SD = round(sd(covid_worries),1))
+```
+
+Parent UK ANOVA
+```{r}
+
+AOV_UK_P = Parent %>% filter(sample == "Parent_UK_London" | sample == "Parent_UK_Manchester" | sample == "Parent_UK")  %>%
+    select(sex, age, childage, informant_race2, newschool, fam_esntl_wrkr, fam_impact_any, fam_dx, exp, sx_ct3, emotion_worries, emotion_worries_2, covid_worries)
+
+dvnames = names(AOV_UK_P)[1:10]
+AOV_UK_P[1:10] = lapply(AOV_UK_P[1:10], function(x){x = factor(x)})
+
+model_cov_uk <- lapply(dvnames, function(x) {
+  lm(substitute(covid_worries ~ i, list(i = as.name(x))), data = AOV_UK_P)})
+sapply(model_cov_uk, car::Anova,simplify =  F)
+
+model_ew_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries ~ i, list(i = as.name(x))), data = AOV_UK_P)})
+sapply(model_ew_uk, car::Anova,simplify =  F)
+
+model_ew2_uk <- lapply(dvnames, function(x) {
+  lm(substitute(emotion_worries_2 ~ i, list(i = as.name(x))), data = AOV_UK_P)})
+sapply(model_ew2_uk, car::Anova,simplify =  F)
+
+```
+
+Parent Population Means 
+```{r}
+US_P %>% filter(!is.na(emotion_worries_2)) %>% summarise(Mean = round(mean(emotion_worries_2),1), SD = round(sd(emotion_worries_2),1))
+
+US_P %>% filter(!is.na(covid_worries)) %>% summarise(Mean = round(mean(covid_worries),1), SD = round(sd(covid_worries),1))
+
+UK_P %>% filter(!is.na(emotion_worries)) %>% summarise(Mean = round(mean(emotion_worries),1), SD = round(sd(emotion_worries),1))
+
+UK_P %>% filter(!is.na(covid_worries)) %>% summarise(Mean = round(mean(covid_worries),1), SD = round(sd(covid_worries),1))
+
+```

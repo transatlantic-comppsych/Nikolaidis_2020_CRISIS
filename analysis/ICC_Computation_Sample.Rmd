@@ -1,0 +1,1052 @@
+---
+title: "ICC Sample Template"
+author: "Jacob DeRosa"
+date: "4/25/2020"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, echo = F, include = F}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+#DATA ORGANIZATION
+```{r Data_Organization}
+
+working_data <-  read.csv("C:/Users/jacob.derosa/Documents/working_data_20200504.csv", header = T, sep = ",") 
+write.csv(working_data, "C:/Users/jacob.derosa/Documents/working_data.csv")
+
+full_dataset <-  read.csv("C:/Users/jacob.derosa/Documents/working_data.csv", header = T, sep = ",") %>%
+  mutate(priorhappyvssad = ifelse(priorhappyvssad == 1, "5", 
+                                ifelse(priorhappyvssad == 2, "4",
+                                       ifelse(priorhappyvssad == 3, "3",
+                                              ifelse(priorhappyvssad == 4, "2",
+                                                     ifelse(priorhappyvssad == 5, "1", NA)))))) %>%
+  mutate(priorhappyvssad_2 = ifelse(priorhappyvssad_2 == 1, "5", 
+                                ifelse(priorhappyvssad_2 == 2, "4",
+                                       ifelse(priorhappyvssad_2 == 3, "3",
+                                              ifelse(priorhappyvssad_2 == 4, "2",
+                                                     ifelse(priorhappyvssad_2 == 5, "1", NA)))))) %>%
+  filter(retest == 1) %>%
+  filter(sample == "Adult_US_RT")
+
+full_dataset$priorhappyvssad = as.numeric(full_dataset$priorhappyvssad)
+full_dataset$priorhappyvssad_2 = as.numeric(full_dataset$priorhappyvssad_2)
+
+```
+
+# Emotion Worries Three Month 
+```{r}
+
+
+domain_data <- full_dataset %>% select(X, participant_id,priorirritable,priorlonely,priornegthoughts, priorfidget, priorfatigue, priorfocus,priorhappyvssad, priorenjoyactivities,priorworry, priorrelaxedvsanxious)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+cfa_model <- 'emotion_worries =~ priorworry + priorhappyvssad + priorenjoyactivities + priorrelaxedvsanxious + priorfidget + priorfatigue + priorfocus + priorirritable + priorlonely + priornegthoughts' 
+
+cfa_fit_bm <- cfa(cfa_model, data = domain_data,
+            ordered=c("priorirritable","priorlonely","priornegthoughts","priorfidget", "priorfatigue", "priorfocus","priorhappyvssad","priorenjoyactivities","priorworry", "priorrelaxedvsanxious"))
+
+
+summary(cfa_fit_bm, fit.measures = TRUE)
+
+# three month prior CFA scores 
+three_scores = data.frame(predict(cfa_fit_bm))
+df3 = cbind(domain_data, three_scores)
+
+
+```
+
+# Emotion Worries Two Weeks
+```{r}
+
+domain_data2 <- full_dataset %>% select(X,participant_id,priorirritable_2,priorlonely_2,priornegthoughts_2, priorfidget_2, priorfatigue_2, priorfocus_2,priorhappyvssad_2, priorenjoyactivities_2,priorworry_2, priorrelaxedvsanxious_2)
+domain_data2 <-domain_data2[complete.cases(domain_data2),]
+
+cfa_model2 <- 'emotion_worries_2 =~ priorworry_2 + priorhappyvssad_2 + priorenjoyactivities_2 + priorrelaxedvsanxious_2 + priorfidget_2 + priorfatigue_2 + priorfocus_2 + priorirritable_2 + priorlonely_2 + priornegthoughts_2' 
+
+cfa_fit_bm2 <- cfa(cfa_model2, data = domain_data2,
+            ordered=c("priorirritable_2","priorlonely_2","priornegthoughts_2","priorfidget_2", "priorfatigue_2", "priorfocus_2","priorhappyvssad_2","priorenjoyactivities_2","priorworry_2", "priorrelaxedvsanxious_2"))
+
+
+# two week prior CFA scores 
+two_scores = data.frame(predict(cfa_fit_bm2))
+df2 = cbind(domain_data2, two_scores)
+
+```
+
+```{r, echo = F, include = F}
+
+three_scores = data.frame(predict(cfa_fit_bm))
+df3 = cbind(three_scores, domain_data)
+
+two_scores = data.frame(predict(cfa_fit_bm2))
+df2 = cbind(domain_data2, two_scores)
+
+df = merge(df2, df3, by=c("X")) %>%
+  rename(participant_id = participant_id.x)
+
+df$ew_difference = df$emotion_worries - df$emotion_worries_2
+```
+
+```{r, echo = F, include= F}
+
+library(lmerTest) # newest version of lme4 to have p-values of fixed affect
+library(lme4)
+library(dplyr)
+library(knitr)
+library(tidyverse)
+
+```
+
+```{r, echo=F}
+
+domain_data <- df %>%
+  select(participant_id,priorirritable,priorlonely,priornegthoughts, priorfidget, priorfatigue, priorfocus,priorhappyvssad, priorenjoyactivities,priorworry, priorrelaxedvsanxious,priorirritable_2,priorlonely_2,priornegthoughts_2, priorfidget_2, priorfatigue_2, priorfocus_2,priorhappyvssad_2, priorenjoyactivities_2,priorworry_2, priorrelaxedvsanxious_2) 
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+domain_data2 <- df %>%
+  select(participant_id, emotion_worries, emotion_worries_2, ew_difference)
+
+domain_data2<-domain_data2[complete.cases(domain_data2),]
+
+```
+# ICC
+
+## Lonely
+```{r, echo = F}
+
+lonely = domain_data %>%
+  select(participant_id, priorlonely) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priorlonely), na.rm=T)) %>%
+  gather("name", "lonely", priorlonely)
+
+lonely_mat = lonely %>%
+  select(participant_id, lonely)
+write.csv(lonely_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_mat.csv")
+
+lonely_cov = lonely %>%
+  select(participant_id, Avg)
+write.csv(lonely_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_cov.csv")
+# Change file path 
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+Avg = restcov$Avg
+
+df <- data.frame(y, participant_id, Avg)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+```
+
+## Lonely 2
+```{r, echo = F}
+
+lonely = domain_data %>%
+  select(participant_id, priorlonely_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priorlonely_2), na.rm=T)) %>%
+  gather("name", "lonely", priorlonely_2)
+
+lonely_mat = lonely %>%
+  select(participant_id, lonely)
+write.csv(lonely_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_2_mat.csv")
+
+lonely_cov = lonely %>%
+  select(participant_id, Avg)
+write.csv(lonely_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_2_cov.csv")
+# Change file path 
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_2_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/lonely_2_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+Avg = restcov$Avg
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+
+```
+
+## Irritable
+```{r, echo = F}
+
+irritable = domain_data %>%
+  select(participant_id, priorirritable) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priorirritable), na.rm=T)) %>%
+  gather("name", "irritable", priorirritable)
+
+irritable_mat = irritable %>%
+  select(participant_id, irritable)
+write.csv(irritable_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_mat.csv")
+
+irritable_cov = irritable %>%
+  select(participant_id, Avg)
+write.csv(irritable_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Irritable 2
+```{r, echo = F}
+
+irritable = domain_data %>%
+  select(participant_id, priorirritable_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priorirritable_2), na.rm=T)) %>%
+  gather("name", "irritable", priorirritable_2)
+
+irritable_mat = irritable %>%
+  select(participant_id, irritable)
+write.csv(irritable_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_mat_2.csv")
+
+irritable_cov = irritable %>%
+  select(participant_id, Avg)
+write.csv(irritable_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/irritable_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Negative Thoughts
+```{r, echo = F}
+
+negthoughts = domain_data %>%
+  select(participant_id, priornegthoughts) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priornegthoughts), na.rm=T)) %>%
+  gather("name", "negthoughts", priornegthoughts)
+
+negthoughts_mat = negthoughts %>%
+  select(participant_id, negthoughts)
+write.csv(negthoughts_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_mat.csv")
+
+negthoughts_cov =negthoughts%>%
+  select(participant_id, Avg)
+write.csv(negthoughts_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+```{r, echo = F}
+
+negthoughts = domain_data %>%
+  select(participant_id, priornegthoughts_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priornegthoughts_2), na.rm=T)) %>%
+  gather("name", "negthoughts", priornegthoughts_2)
+
+negthoughts_mat = negthoughts %>%
+  select(participant_id, negthoughts)
+write.csv(negthoughts_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_mat_2.csv")
+
+negthoughts_cov =negthoughts%>%
+  select(participant_id, Avg)
+write.csv(negthoughts_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/negthoughts_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Fidget
+```{r, echo = F}
+
+fidget = domain_data %>%
+  select(participant_id, priorfidget) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priorfidget), na.rm=T)) %>%
+  gather("name", "fidget", priorfidget)
+
+fidget_mat = fidget %>%
+  select(participant_id, fidget)
+write.csv(fidget_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_mat.csv")
+
+fidget_cov =fidget%>%
+  select(participant_id, Avg)
+write.csv(fidget_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Fidget
+```{r, echo = F}
+
+fidget = domain_data %>%
+  select(participant_id, priorfidget_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(priorfidget_2), na.rm=T)) %>%
+  gather("name", "fidget", priorfidget_2)
+
+fidget_mat = fidget %>%
+  select(participant_id, fidget)
+write.csv(fidget_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_mat_2.csv")
+
+fidget_cov =fidget%>%
+  select(participant_id, Avg)
+write.csv(fidget_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fidget_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Fatigue
+```{r, echo = F}
+
+fatigue = domain_data %>%
+  select(participant_id,  priorfatigue) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorfatigue), na.rm=T)) %>%
+  gather("name", "fatigue",  priorfatigue)
+
+fatigue_mat = fatigue %>%
+  select(participant_id, fatigue)
+
+write.csv( fatigue_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_mat.csv")
+
+ fatigue_cov = fatigue%>%
+  select(participant_id, Avg)
+write.csv( fatigue_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+```
+
+## Fatigue 2
+```{r, echo = F}
+
+fatigue = domain_data %>%
+  select(participant_id,  priorfatigue_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorfatigue_2), na.rm=T)) %>%
+  gather("name", "fatigue",  priorfatigue_2)
+
+fatigue_mat = fatigue %>%
+  select(participant_id, fatigue)
+
+write.csv( fatigue_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_mat_2.csv")
+
+ fatigue_cov = fatigue%>%
+  select(participant_id, Avg)
+write.csv( fatigue_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/fatigue_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+```
+
+## Focus
+```{r, echo = F}
+
+focus = domain_data %>%
+  select(participant_id,  priorfocus) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorfocus), na.rm=T)) %>%
+  gather("name", "focus",  priorfocus)
+
+focus_mat = focus %>%
+  select(participant_id, focus)
+
+write.csv( focus_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_mat.csv")
+
+ focus_cov = focus%>%
+  select(participant_id, Avg)
+write.csv( focus_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_mat.csv", header = T)[,3]
+
+restcov <- read.csv( "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+
+## Focus
+```{r, echo = F}
+
+focus = domain_data %>%
+  select(participant_id,  priorfocus_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorfocus_2), na.rm=T)) %>%
+  gather("name", "focus",  priorfocus_2)
+
+focus_mat = focus %>%
+  select(participant_id, focus)
+
+write.csv( focus_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_mat_2.csv")
+
+ focus_cov = focus%>%
+  select(participant_id, Avg)
+write.csv( focus_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv( "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/focus_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Happy vs Sad
+```{r, echo = F}
+
+happyvssad = domain_data %>%
+  select(participant_id,  priorhappyvssad) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorhappyvssad), na.rm=T)) %>%
+  gather("name", "happyvssad",  priorhappyvssad)
+
+happyvssad_mat = happyvssad %>%
+  select(participant_id, happyvssad)
+
+write.csv( happyvssad_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_mat.csv")
+
+ happyvssad_cov = happyvssad%>%
+  select(participant_id, Avg)
+write.csv( happyvssad_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Happy vs Sad
+```{r, echo = F}
+
+happyvssad = domain_data %>%
+  select(participant_id,  priorhappyvssad_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorhappyvssad_2), na.rm=T)) %>%
+  gather("name", "happyvssad",  priorhappyvssad_2)
+
+happyvssad_mat = happyvssad %>%
+  select(participant_id, happyvssad)
+
+write.csv( happyvssad_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_mat_2.csv")
+
+ happyvssad_cov = happyvssad%>%
+  select(participant_id, Avg)
+write.csv( happyvssad_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/happyvssad_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Enjoy Activities
+```{r, echo = F}
+
+enjoyactivities = domain_data %>%
+  select(participant_id,  priorenjoyactivities) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorenjoyactivities), na.rm=T)) %>%
+  gather("name", "enjoyactivities",  priorenjoyactivities)
+
+enjoyactivities_mat = enjoyactivities %>%
+  select(participant_id, enjoyactivities)
+
+write.csv( enjoyactivities_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_mat.csv")
+
+enjoyactivities_cov = enjoyactivities%>%
+  select(participant_id, Avg)
+write.csv( enjoyactivities_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Enjoy Activities
+```{r, echo = F}
+
+enjoyactivities = domain_data %>%
+  select(participant_id,  priorenjoyactivities_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorenjoyactivities_2), na.rm=T)) %>%
+  gather("name", "enjoyactivities",  priorenjoyactivities_2)
+
+enjoyactivities_mat = enjoyactivities %>%
+  select(participant_id, enjoyactivities)
+
+write.csv( enjoyactivities_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_mat_2.csv")
+
+enjoyactivities_cov = enjoyactivities%>%
+  select(participant_id, Avg)
+write.csv( enjoyactivities_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/enjoyactivities_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Worry 
+```{r, echo = F}
+
+worry = domain_data %>%
+  select(participant_id,  priorworry) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorworry), na.rm=T)) %>%
+  gather("name", "worry",  priorworry)
+
+worry_mat = worry %>%
+  select(participant_id, worry)
+
+write.csv(worry_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_mat.csv")
+
+worry_cov = worry%>%
+  select(participant_id, Avg)
+write.csv(worry_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Worry 
+```{r, echo = F}
+
+worry = domain_data %>%
+  select(participant_id,  priorworry_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c( priorworry_2), na.rm=T)) %>%
+  gather("name", "worry",  priorworry_2)
+
+worry_mat = worry %>%
+  select(participant_id, worry)
+
+write.csv(worry_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_mat_2.csv")
+
+worry_cov = worry%>%
+  select(participant_id, Avg)
+write.csv(worry_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/worry_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Relaxed Anxious
+```{r, echo = F}
+
+relaxedvsanxious = domain_data %>%
+  select(participant_id,   priorrelaxedvsanxious) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(  priorrelaxedvsanxious), na.rm=T)) %>%
+  gather("name", "relaxedvsanxious",   priorrelaxedvsanxious)
+
+relaxedvsanxious_mat = relaxedvsanxious %>%
+  select(participant_id, relaxedvsanxious)
+
+write.csv(relaxedvsanxious_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_mat.csv")
+
+relaxedvsanxious_cov = relaxedvsanxious%>%
+  select(participant_id, Avg)
+write.csv(relaxedvsanxious_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Relaxed Anxious
+```{r, echo = F}
+
+relaxedvsanxious = domain_data %>%
+  select(participant_id,   priorrelaxedvsanxious_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(  priorrelaxedvsanxious_2), na.rm=T)) %>%
+  gather("name", "relaxedvsanxious",   priorrelaxedvsanxious_2)
+
+relaxedvsanxious_mat = relaxedvsanxious %>%
+  select(participant_id, relaxedvsanxious)
+
+write.csv(relaxedvsanxious_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_mat_2.csv")
+
+relaxedvsanxious_cov = relaxedvsanxious%>%
+  select(participant_id, Avg)
+write.csv(relaxedvsanxious_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/relaxedvsanxious_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Emotions Worries Factor
+```{r, echo = F}
+
+emotions_worries = domain_data2 %>%
+  select(participant_id,   emotion_worries) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(  emotion_worries), na.rm=T)) %>%
+  gather("name", "emotions_worries",   emotion_worries)
+
+emotions_worries_mat = emotions_worries %>%
+  select(participant_id, emotions_worries)
+
+write.csv(emotions_worries_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_mat.csv")
+
+emotions_worries_cov = emotions_worries%>%
+  select(participant_id, Avg)
+write.csv(emotions_worries_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+Avg <- restcov$Avg
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Emotions Worries Factor
+```{r, echo = F}
+
+emotions_worries = domain_data2 %>%
+  select(participant_id,   emotion_worries_2) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(  emotion_worries_2), na.rm=T)) %>%
+  gather("name", "emotions_worries",   emotion_worries_2)
+
+emotions_worries_mat = emotions_worries %>%
+  select(participant_id, emotions_worries)
+
+write.csv(emotions_worries_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_mat_2.csv")
+
+emotions_worries_cov = emotions_worries%>%
+  select(participant_id, Avg)
+write.csv(emotions_worries_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_cov_2.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_mat_2.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/emotions_worries_cov_2.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+Avg <- restcov$Avg
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
+## Emotions Worries Factor
+```{r, echo = F}
+
+emotions_worries = domain_data2 %>%
+  select(participant_id,   ew_difference) %>%
+  group_by(participant_id) %>%
+  mutate(Avg=mean(c(  ew_difference), na.rm=T)) %>%
+  gather("name", "ew_difference",   ew_difference)
+
+emotions_worries_mat = emotions_worries %>%
+  select(participant_id, ew_difference)
+
+write.csv(emotions_worries_mat, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/ew_diff_mat.csv")
+
+emotions_worries_cov = emotions_worries%>%
+  select(participant_id, Avg)
+write.csv(emotions_worries_cov, "C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/ew_diff_cov.csv")
+
+
+# Load conn_all
+y <-  read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/ew_diff_mat.csv", header = T)[,3]
+
+restcov <- read.csv("C:/Users/jacob.derosa/Documents/US_EFA_CFA/ICC/Data/ew_diff_cov.csv", header = T)[,-1]
+participant_id <- restcov$participant_id
+Avg <- restcov$Avg
+
+df <- data.frame(y, participant_id)
+fm<- lmer(y ~ (1 | participant_id), data = df)
+out_fm<-summary(fm)
+out_fm 
+statistics.variances<-as.data.frame(out_fm$varcor) 
+sigma_b<-statistics.variances$vcov[1] #variance of fixed effect
+sigma_r<-statistics.variances$vcov[2] #variance of random effect
+icc <- sigma_b/(sigma_r+sigma_b)
+
+icc %>%
+   kable(format="pandoc", caption = "ICC")
+
+
+```
+
