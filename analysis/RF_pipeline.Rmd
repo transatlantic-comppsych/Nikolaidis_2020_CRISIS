@@ -1,0 +1,476 @@
+---
+title: "RandomForest"
+author: "Aki Nikolaidis,Ian Douglas, Jacob DeRosa"
+date: "5/3/2020"
+output: html_document
+---
+
+```{r, results='hide', message=FALSE}
+set.seed(111)
+if (!require(tidyverse)) {install.packages("tidyverse")}
+if (!require(readxl)) {install.packages("readxl")}
+if (!require(doParallel)) {install.packages("doParallel")}
+if (!require(randomForest)) {install.packages("randomForest")}
+
+library(readxl)
+library(doParallel)
+library(randomForest)
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych) # need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+library(gtools)
+```
+
+
+
+
+
+#DATA ORGANIZATION
+```{r Data_Organization}
+#full_dataset <- read.csv('/Users/aki.nikolaidis/Dropbox/1_Projects/1_Research/CRISIS/Data/FullSample/working_data_20200424.csv', header = TRUE, sep = ",")
+
+full_dataset <- read.csv('/Users/aki.nikolaidis/Dropbox/1_Projects/1_Research/CRISIS/Data/UpdatedRace/Working_Data/Parent_US_Updated_07272020.csv', header = TRUE, sep = ",")
+
+
+#prediction_data <- read.csv('/Users/aki.nikolaidis/Dropbox/1_Projects/1_Research/CRISIS/Data/Difference_Scores/US_Split_1_diff_df.csv', header = TRUE, sep = ",")
+
+# set output folder for plots, based on date
+sample <- 'US_Parent_Combined'
+#CHOICES:
+#         US_Adult1
+#         UK_Adult1
+#         US_Parent1
+#         UK_Parent1
+
+analysis <-'final_FULL_MODEL'
+
+number_of_bootstraps <- 1000
+
+
+analysis_name <- paste0(sample, '/', analysis)
+
+todays_date <- Sys.Date()
+
+dir.create(paste0('../plots/'))
+dir.create(paste0('../plots/',sample))
+dir.create(paste0('../plots/',sample,'/',analysis))
+
+dir.create(paste0('../output/',sample))
+dir.create(paste0('../output/',sample,'/',analysis))
+
+#Background:
+#location:43
+#education : 44
+#educationmother: 45
+#educationfather: 46
+#householdnumber: 47
+#essentialworkers: 48
+#roomsinhouse: 58
+#insurance: 59
+#govassist: 60
+#physicalhealth: 61
+
+match('years_2', names(full_dataset))
+
+
+# covid_worries: 303
+# covid_worries_resid: 304
+# ew_difference_resid: 305
+# emotion_worries_resid: 306
+# emotion_worries_2_resid: 307
+# emotion_worries: 308
+# emotion_worries_2: 309
+# ew_difference: 310
+# Louvain_Cluster_LC: 315 #Updated
+# Louvain_Cluster_BM: 314 #Updated
+# Final Race variable: 316
+
+#Need to make updates to data file:
+#Positive change at 292
+
+### ADULT DATA BASELINE + Life Changes + COVID#####
+
+#BASELINE, dropping 303 (COVID Worries), 315 (LC Subtype)
+#domain_data <- full_dataset[,c(2, 9, 43:48, 58:61, 142:147,158:160, 161:167, 235, 308, 316)]
+
+#BASELINE + LC Subtype ____________dropping 303 (COVID WOrries)
+#domain_data <- full_dataset[,c(2, 9, 43:48, 58:61, 142:147,158:160, 161:167, 235, 308, 315, 316)]
+
+#BASELINE + COVID ________________dropping 315 (LC Subtype)
+#domain_data <- full_dataset[,c(2, 9, 43:48, 58:61, 142:147,158:160, 161:167, 235, 303, 308, 316)]
+
+#FULL MODEL
+#domain_data <- full_dataset[,c(2, 9, 43:48, 58:61, 142:147,158:160, 161:167, 235,303, 308, 315, 316)]
+
+
+
+
+### PARENT DATA BASELINE + Life Changes + COVID#####
+#226:229
+
+
+#BASELINE, dropping 303 (COVID Worries), 315 (LC Subtype)
+#domain_data<- full_dataset[,c(2, 215, 43,47,48, 58:61, 226:229, 146:147,158:160, 161:167, 235, 308, 316)]
+
+#BASELINE + LC Subtype ____________dropping 303 (COVID WOrries)
+#domain_data <- full_dataset[,c(2, 215, 43,47:48, 58:61, 226:229, 146:147,158:160, 161:167, 235, 308,315, 316)]
+
+#BASELINE + COVID ________________dropping 315 (LC Subtype)
+#domain_data <- full_dataset[,c(2,215, 43,47:48, 58:61, 226:229, 146:147,158:160, 161:167, 235,303, 308, 316)]
+
+
+#FULL MODEL
+domain_data <- full_dataset[,c(2,215, 43,47:48, 58:61, 226:229, 146:147,158:160, 161:167, 235,303, 308,315, 316)]
+names(domain_data)[which(names(domain_data) == "years_2")] <- "years"
+
+domain_data<-domain_data[complete.cases(domain_data),]
+
+emotion_worries_temp_factor<-quantcut(domain_data$emotion_worries,5)
+
+factor_emotion_worries<-domain_data$emotion_worries
+emotion_worries_levels <-levels(emotion_worries_temp_factor) 
+factor_emotion_worries[emotion_worries_temp_factor==emotion_worries_levels[1]]<-1
+factor_emotion_worries[emotion_worries_temp_factor==emotion_worries_levels[2]]<-2
+factor_emotion_worries[emotion_worries_temp_factor==emotion_worries_levels[3]]<-3
+factor_emotion_worries[emotion_worries_temp_factor==emotion_worries_levels[4]]<-4
+factor_emotion_worries[emotion_worries_temp_factor==emotion_worries_levels[5]]<-5
+factor_emotion_worries<-as.factor(factor_emotion_worries)
+
+years_temp_factor<-quantcut(domain_data$years,5)
+factor_years<-domain_data$years
+years_levels <-levels(years_temp_factor)
+factor_years[years_temp_factor==years_levels[1]]<-1
+factor_years[years_temp_factor==years_levels[2]]<-2
+factor_years[years_temp_factor==years_levels[3]]<-3
+factor_years[years_temp_factor==years_levels[4]]<-4
+factor_years[years_temp_factor==years_levels[5]]<-5
+factor_years<-as.factor(factor_years)
+
+#Comment out below for baseline model, and baseline + LC Model
+
+covid_worries_temp_factor<-quantcut(domain_data$covid_worries,5)
+factor_covid_worries<-domain_data$covid_worries
+covid_worries_levels <-levels(covid_worries_temp_factor)
+factor_covid_worries[covid_worries_temp_factor==covid_worries_levels[1]]<-1
+factor_covid_worries[covid_worries_temp_factor==covid_worries_levels[2]]<-2
+factor_covid_worries[covid_worries_temp_factor==covid_worries_levels[3]]<-3
+factor_covid_worries[covid_worries_temp_factor==covid_worries_levels[4]]<-4
+factor_covid_worries[covid_worries_temp_factor==covid_worries_levels[5]]<-5
+factor_covid_worries<-as.factor(factor_covid_worries)
+
+
+# Baseline Model, Baseline + LC Subtype
+#domain_data <-cbind(domain_data, factor_emotion_worries, factor_years)
+#domain_data = subset(domain_data, select = -c(emotion_worries, years))
+
+# Full Model, Baseline + COVID Worries
+domain_data <-cbind(domain_data, factor_emotion_worries, factor_covid_worries, factor_years)
+domain_data = subset(domain_data, select = -c(covid_worries, emotion_worries, years))
+
+
+
+
+
+
+
+
+
+
+
+#behavior_media <- full_dataset[,c(142:147,158:160)]
+#emotions_worries <- full_dataset[,c(148:157)]
+#substance_use <- full_dataset[,c(161:167)]
+
+prediction_data <- full_dataset[,c(2, 309)]
+prediction_data<-prediction_data[complete.cases(prediction_data),]
+
+index1<-t(domain_data$participant_id) %in% t(prediction_data$participant_id)
+domain_data<-domain_data[index1,]
+
+index2<-t(prediction_data$participant_id) %in% t(domain_data$participant_id)
+prediction_data<-prediction_data[index2,]
+
+
+all_data = merge(domain_data, prediction_data, by = "participant_id")
+
+all_data = all_data[complete.cases(all_data),]
+domain_data <- all_data
+
+
+```
+
+
+#Background data, 3 months data, COVID worries factor, life changes cluster
+#BACKGROUND <- full_dataset[,c(43:48, 58:61)]
+
+# PARENT COMBINED: full_dataset[,c(225:228,146,147,158:160,148:157,161:167,109:113,141, 114,128:140)]
+#ADULT COMBINED: full_dataset[,c(142:147,158:160,148:157,161:167,109:113,141, 114,128:140)]
+
+#COVID WOrries
+#covid_worries <- full_dataset[,c(109:113,141)]
+#life_changes <- full_dataset[,c(114,128:140)]
+
+# PARENT REPORT
+#behavior_media <- full_dataset[,c(225:228,146,147,158:160)]
+#emotions_worries <- full_dataset[,c(148:157)]
+#substance_use <- full_dataset[,c(161:167)]
+
+
+#ADULT SELF REPORT
+#behavior_media <- full_dataset[,c(142:147,158:160)]
+#emotions_worries <- full_dataset[,c(148:157)]
+#substance_use <- full_dataset[,c(161:167)]
+
+
+
+
+
+
+# Fit the model
+```{r Fit the model}
+rf_domain = randomForest(
+  formula = emotion_worries_2 ~ .-participant_id,
+  data = all_data,
+  mtry = round((ncol(all_data) - 4)/3),
+  ntree = 1000,
+  #strata = rf_data$Upbringing_Group,
+  replace = TRUE,
+  #sampsize = min(table(data_for_cbcl_rf$Upbringing_Group)) * n_distinct(data_for_cbcl_rf$Upbringing_Group),
+  proximity = TRUE, 
+  localImp = TRUE, 
+  importance = TRUE
+)
+
+domain_r_squared=cor(rf_domain$predicted,rf_domain$y)**2
+rf_lm<-lm(rf_domain$y ~ rf_domain$predicted)
+logLik(rf_lm)
+saveRDS(rf_domain, file= paste0("../output/",analysis_name,"/1_domainTotal.rds"))
+cbind
+tempdata <- data.frame(cbind(rf_domain$y, rf_domain$predicted))
+
+library(ggplot2)
+# Basic scatter plot
+ggplot(tempdata, aes(x=X1, y=X2)) + geom_point()
+scatter<-ggplot()+
+  geom_point(x=rf_domain$predicted, y = rf_domain$y)
+scatter
+
+#CREATE NULL domain MODEL
+reruns<-1:5#1000#
+domain_mean_rsq_vec<-vector()
+domain_predict_actual_rsq<-vector()
+null_rf_data<- all_data
+null_rf_data<-subset(null_rf_data, select= -c(emotion_worries_2))
+
+for (i in seq_along(reruns)){
+  shuffled_y_target<-sample(all_data$emotion_worries_2)
+  null_rf_data<-cbind(null_rf_data,shuffled_y_target)
+  
+  
+  NULL_rf_domain_TOTAL = randomForest(
+  formula = shuffled_y_target ~ .-participant_id,
+  data = null_rf_data,
+  mtry = round((ncol(null_rf_data) - 4)/3),
+  ntree = 1000,
+  #strata = null_rf_data$Upbringing_Group,
+  replace = TRUE,
+  #sampsize = min(table(null_rf_data$Upbringing_Group)) * n_distinct(null_rf_data$Upbringing_Group),
+  proximity = TRUE, 
+  localImp = TRUE, 
+  importance = TRUE)
+  
+  domain_mean_rsq_vec<-append(domain_mean_rsq_vec,mean(NULL_rf_domain_TOTAL$rsq))
+  domain_predict_actual_rsq <- append(domain_predict_actual_rsq,
+                                    (cor(NULL_rf_domain_TOTAL$predicted,NULL_rf_domain_TOTAL$y))**2)
+
+  null_rf_data<-subset(null_rf_data, select = -c(shuffled_y_target))
+}
+```
+
+#Plot Results
+```{r Plot Results}
+nulldata_rsq <-data.frame("nullrsq" = domain_predict_actual_rsq)
+
+nullstats95<-t.test(nulldata_rsq$nullrsq,conf.level = 0.95)
+nullstats99<-t.test(nulldata_rsq$nullrsq,conf.level = 0.99)
+nullstats999<-t.test(nulldata_rsq$nullrsq,conf.level = 0.999)
+nullstats999999<-t.test(nulldata_rsq$nullrsq,conf.level = 0.999999)
+nullmean<-nullstats95$estimate
+
+domain_v_null <- ggplot(nulldata_rsq, aes(y=nullrsq)) +
+    ylim(0,0.6) +
+    geom_jitter(aes(x="Null Model Distribution", y=nullrsq), alpha = 0.2, size = 0.1) +
+
+    geom_hline(yintercept=nullstats95$estimate, color = "blue") +
+    geom_hline(yintercept=max(nullstats999999$conf.int), color = "red") +
+
+    geom_point(aes(x="Null Model Distribution", y=domain_r_squared), size = 6, shape = 23, color = "black", fill = "purple") + 
+    annotate("text", x ="Null Model Distribution", y=(nullstats95$estimate - 0.005), label = "Null Model Mean")+
+    annotate("text", x ="Null Model Distribution", y=(max(nullstats999999$conf.int)+ 0.02), label = "99.9999% CI")+
+    annotate("text", x ="Null Model Distribution", y=(domain_r_squared + 0.03), label = "Model Performance") +
+    theme_classic() +
+  ylab("R-Squared")
+
+ggsave(domain_v_null, height = 5, width = 3, file = paste0("../plots/", analysis_name,  
+       "/RF_domain_Tot_vNull.png"))
+
+```
+
+
+
+# Variable importance plot
+```{r Variable importance plot}
+# merge the variable importances with their respective SD to compute error bars
+
+#rf_domain<- readRDS(file="/Users/aki.nikolaidis/Dropbox/1_Projects/1_Research/CRISIS/output/US_Parent_Combined/final_LC-Clust_COVID_background_prediction/1_domainTotal.rds")
+
+#rf_domain<- readRDS(file="/Users/aki.nikolaidis/Dropbox/1_Projects/1_Research/CRISIS/output/UK_Adult_Combined/final_EmWor_LC-Clust_COVID_background_prediction/1_domainTotal.rds")
+
+#US Adult
+#UK Adult
+#US Parent
+#UK Parent
+
+
+VIMs = merge(
+  as.data.frame(importance(rf_domain)) %>%
+    mutate(Variable = rownames(importance(rf_domain))) %>%
+    rename(PercentChangeMSE = `%IncMSE`) %>%
+    select(-IncNodePurity),
+  data.frame(Variable = names(rf_domain$importanceSD),
+             importanceSD = rf_domain$importanceSD),
+  by = "Variable"
+) %>%
+  mutate(# the importances are divided by their SD, so return them to original scale:
+    PercentChangeMSE = PercentChangeMSE * importanceSD,
+    VIM_upr = PercentChangeMSE + 2*importanceSD,
+    VIM_lwr = PercentChangeMSE - 2*importanceSD) %>%
+  arrange(desc(PercentChangeMSE)) %>%
+  # finally, multiply all percent values by 100%, since they are in decimal form now
+  mutate_if(is.numeric, ~(. * 100))
+# order the factor labels to be in descending order (as the data frame is ordered already)
+VIMs$Variable = factor(VIMs$Variable,
+                       levels = rev(VIMs$Variable))
+
+
+VIMs = mutate(VIMs, select(VIM_lwr))
+
+# Set variable labels to be correct text
+#ADULT SELF REPORT
+ # VIMs = mutate(VIMs,
+ #                Variable = case_when(Variable == 'factor_covid_worries' ~'COVID Worries',
+ #                               Variable == 'bedtimeweekdays' ~ 'Weekday Bedtime',
+ #                               Variable == 'priortvmedia' ~ 'TV Usage',
+ #                               Variable == 'factor_emotion_worries' ~ 'Prior Mood States',
+ # 
+ #                               Variable == 'Louvain_Cluster_LC' ~ 'Life Changes Subtype',
+ #                               Variable == 'bedtimeweekends' ~ 'Weekend Bedtime',
+ #                               Variable == 'exerciseprior' ~ 'Exercise',
+ #                               Variable == 'threemonthsalcohol' ~ 'Alcohol',
+ #                               Variable == 'insurance' ~ 'Insurance',
+ #                               Variable == 'threemonthsvaping' ~ 'Vaping',
+ #                               Variable == 'education' ~ 'Education',
+ #                               Variable == 'outdoorsprior' ~ 'Outdoors',
+ #                               Variable == 'informant_race2' ~ 'Race',
+ #                               Variable == 'location' ~ 'Location',
+ #                               Variable == 'hoursofsleepweekdays' ~ 'Weekday Sleep',
+ #                               Variable == 'educationfather' ~ 'Father Education',
+ #                               Variable == 'educationmother' ~ 'Mother Education',
+ #                               Variable == 'householdnumber' ~ 'Household Number',
+ #                               Variable == 'priorvideogames' ~ 'Videogames',
+ #                               Variable == 'factor_years' ~ 'Age',
+ #                               Variable == 'hoursofsleepweekends' ~ 'Weekend Sleep',
+ #                               Variable == 'roomsinhouse' ~ 'Rooms in House',
+ #                               Variable == 'physicalhealth' ~ 'Physical Health',
+ #                               Variable == 'priorsocialmedia' ~ 'Social Media',
+ #                               Variable == 'threemonthstobacco' ~ 'Tobacco',
+ #                               Variable == 'threemonthsmarijuana' ~ 'Marijuana',
+ #                               Variable == 'threemonthsopiates' ~ 'Opiates',
+ #                               Variable == 'essentialworkers' ~ 'Essential Workers',
+ #                               Variable == 'govassist' ~ 'Gov. Assistance',
+ #                               Variable == 'threemonthsother' ~ 'Other Drugs',
+ #                               Variable == 'sex_cat' ~ 'Sex',
+ #                               Variable == 'threemonthssleepingmeds' ~ 'Sleeping Meds'))  %>%
+ #              arrange(desc(PercentChangeMSE))
+
+
+#PARENT REPORT
+
+VIMs = mutate(VIMs,
+               Variable = case_when(Variable == 'factor_covid_worries' ~'COVID Worries',
+                              Variable == 'priorweekdaybedtime' ~ 'Weekday Bedtime',
+                              Variable == 'priortvmedia' ~ 'TV Usage',
+                              Variable == 'factor_emotion_worries' ~ 'Prior Mood States',
+                              Variable == 'Louvain_Cluster_LC' ~ 'Life Changes Subtype',
+                              Variable == 'priorweekendbedtime' ~ 'Weekend Bedtime',
+                              Variable == 'factor_years' ~ 'Age',
+                              Variable == 'exerciseprior' ~ 'Exercise',
+                              Variable == 'threemonthsalcohol' ~ 'Alcohol',
+                              Variable == 'insurance' ~ 'Insurance',
+                              Variable == 'threemonthsvaping' ~ 'Vaping',
+                              Variable == 'education' ~ 'Education',
+                              Variable == 'outdoorsprior' ~ 'Outdoors',
+                              Variable == 'informant_race2' ~ 'Race',
+                              Variable == 'location' ~ 'Location',
+                              Variable == 'priorhoursofsleepweekdays' ~ 'Weekday Sleep',
+                              Variable == 'educationfather' ~ 'Father Education',
+                              Variable == 'educationmother' ~ 'Mother Education',
+                              Variable == 'householdnumber' ~ 'Household Number',
+                              Variable == 'priorvideogames' ~ 'Videogames',
+                              Variable == 'years' ~ 'Age',
+                              Variable == 'priorhoursofsleepweekend' ~ 'Weekend Sleep',
+                              Variable == 'roomsinhouse' ~ 'Rooms in House',
+                              Variable == 'physicalhealth' ~ 'Physical Health',
+                              Variable == 'priorsocialmedia' ~ 'Social Media',
+                              Variable == 'threemonthstobacco' ~ 'Tobacco',
+                              Variable == 'threemonthsmarijuana' ~ 'Marijuana',
+                              Variable == 'threemonthsopiates' ~ 'Opiates',
+                              Variable == 'essentialworkers' ~ 'Essential Workers',
+                              Variable == 'govassist' ~ 'Gov. Assistance',
+                              Variable == 'threemonthsother' ~ 'Other Drugs',
+                              Variable == 'sex_cat' ~ 'Sex',
+                              Variable == 'threemonthssleepingmeds' ~ 'Sleeping Meds'))  %>%
+              arrange(desc(PercentChangeMSE))
+
+
+VIMs$Variable = factor(VIMs$Variable,
+                       levels = rev(VIMs$Variable))
+
+
+# Plotting:
+plt = ggplot(data = VIMs) +
+  geom_bar(stat= "identity", aes(x = Variable, y = PercentChangeMSE), fill = 'lightgrey') +
+  geom_errorbar(aes(x = Variable, ymin = VIM_lwr, ymax = VIM_upr)) +
+  coord_flip() +
+  theme_linedraw() +
+  ggtitle("Variable Importances For Predicting Change Emotions Worries",
+          subtitle = paste("% variance explained: ", domain_r_squared)) +
+  theme(
+    plot.subtitle = element_text(size=22, hjust = .5),
+    title = element_text(hjust = .5, size = 25),
+    axis.title = element_text(size=20),
+    axis.text = element_text(size = 15)
+  ) +
+  ylab("Percent Change in MSE")
+
+
+ggsave(plt, height = 12, width = 15, file = paste0("../plots/", analysis_name,  
+       "/Importance_RF_Total2.png"))
+       
+
+#ggsave(plot = plt, 
+#       file= paste0("../../finalPlots/", todays_date, "/randomForest/final/VIMPlot_RF_rawECA+5PC_regressCBCLTOTAL.png"),
+#       height = 12, width = 15)
+
+
+
+```
+
